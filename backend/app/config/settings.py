@@ -62,6 +62,48 @@ class Settings(BaseSettings):
     METRICS_RETENTION_DAYS: int = 30
     LOG_RETENTION_DAYS: int = 7
 
+    # Document & Vector settings
+    DOCUMENT_STORAGE_PATH: str = "data/documents"
+    MAX_DOCUMENT_SIZE_MB: int = 10
+    ALLOWED_DOCUMENT_TYPES: list = ["pdf", "docx", "txt", "md"]
+    EMBEDDING_PROVIDER: str = "mock"
+    EMBEDDING_MODEL: str = "text-embedding-004"
+    VECTOR_PROVIDER: str = "sqlite"
+    CHUNK_SIZE: int = 1000
+    CHUNK_OVERLAP: int = 200
+    TOP_K_RESULTS: int = 5
+    BATCH_SIZE: int = 32
+
+    # RAG & Memory settings
+    MEMORY_PROVIDER: str = "sqlite"
+    RAG_PROVIDER: str = "sqlite"
+    MAX_CONTEXT_CHUNKS: int = 5
+    MAX_CONTEXT_TOKENS: int = 4096
+    ENABLE_HYBRID_SEARCH: bool = True
+    ENABLE_RERANKING: bool = True
+    MEMORY_EXPIRATION_DAYS: int = 30
+    RERANKING_PROVIDER: str = "mock"
+    MEMORY_SUMMARY_TRIGGER_MESSAGES: int = 10
+    MEMORY_SUMMARY_TRIGGER_TOKENS: int = 2000
+
+    # Orchestrator & Workflows settings
+    DEFAULT_TASK_TIMEOUT_SECONDS: int = 60
+    MAX_WORKFLOW_RETRIES: int = 3
+
+    # Gateway settings
+    DEFAULT_PROVIDER: str = "mock"
+    DEFAULT_CHAT_MODEL: str = "mock-chat-model"
+    DEFAULT_EMBEDDING_MODEL: str = "text-embedding-004"
+    DEFAULT_RERANK_MODEL: str = "mock-rerank"
+    ENABLE_STREAMING: bool = True
+    ENABLE_FAILOVER: bool = True
+    MAX_PROVIDER_RETRIES: int = 3
+    REQUEST_TIMEOUT_SECONDS: int = 30
+    RATE_LIMIT_PER_PROVIDER: int = 60
+    COST_TRACKING_ENABLED: bool = True
+    OPENROUTER_API_KEY: str = ""
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+
     model_config = SettingsConfigDict(
         case_sensitive=True,
         env_file=".env",

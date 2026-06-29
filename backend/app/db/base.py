@@ -5,6 +5,17 @@ from app.models.audit_log import AuditLog  # noqa
 from app.models.agent import AgentRegistry  # noqa
 from app.models.tool_model import Tool, Plugin, ToolExecutionLog  # noqa
 from app.models.monitoring_model import SystemMetric, ExecutionMetric  # noqa
+from app.models.document import Document  # noqa
+from app.models.document_chunk import DocumentChunk  # noqa
+from app.models.vector_embedding import VectorEmbedding  # noqa
+from app.models.conversation import Conversation  # noqa
+from app.models.message import Message  # noqa
+from app.models.memory_entry import MemoryEntry  # noqa
+from app.models.knowledge_collection import KnowledgeCollection  # noqa
+from app.models.workflow_model import Workflow, WorkflowExecution, Task, TaskExecution, AgentAssignment, WorkflowLog, DeadLetterQueue  # noqa
+from app.models.gateway_model import ProviderUsage, ProviderHealth, ModelRegistry  # noqa
+
+
 
 
 

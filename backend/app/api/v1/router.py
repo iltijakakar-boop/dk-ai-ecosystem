@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import health, auth, users, admin, agents, tools, monitoring
+from app.api.v1.endpoints import health, auth, users, admin, agents, tools, monitoring, documents, search, memory, conversations, rag, workflows
 
 v1_router = APIRouter()
 
@@ -10,6 +10,13 @@ v1_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 v1_router.include_router(agents.router, prefix="/agents", tags=["agents"])
 v1_router.include_router(tools.router)
 v1_router.include_router(monitoring.router)
+v1_router.include_router(documents.router)
+v1_router.include_router(search.router)
+v1_router.include_router(memory.router)
+v1_router.include_router(conversations.router)
+v1_router.include_router(rag.router)
+v1_router.include_router(workflows.router)
+
 
 
 

@@ -225,5 +225,124 @@ Exposed routes under `/api/v1/monitoring/`:
 - `GET /logs`: Real-time log tail retriever (retrieves last 100 log lines).
 - `POST /cleanup`: Manual retention policy database purge.
 
+---
+
+### 6. Document Management & Vector Storage (Sprint 008A)
+
+The ecosystem includes a production-ready Document Ingestion, chunking, and Vector Database layer.
+
+#### File Ingestion & Security
+- **Multi-File Ingestion**: Supports uploading multiple files in a single REST request, assigning unique UUID filenames under `data/documents/` while preserving metadata in SQL databases.
+- **SHA-256 Duplicate Check**: Generates a cryptographic hash of uploaded files. Rejects duplicate uploads or returns existing document records to avoid storage waste.
+- **Security Protections**: File validation checks MIME-types, size limits (up to 10MB), and prevents path traversals.
+
+#### Background Ingestion Queue
+- **FastAPI Background Tasks**: Triggers background parsing and chunking, immediately returning a `{"status": "processing"}` status payload. Clients can poll the status endpoint to monitor progression.
+
+#### Pluggable Embedding & Vector Stores
+- **Pluggable Vector Databases**: Built behind the `BaseVectorStore` interface supporting dynamic switches:
+  - **SQLiteVectorStore**: Ecosystem default. Stores vector floats in binary BLOBs and computes cosine similarity directly in Python with zero external requirements.
+  - **FAISSVectorStore / ChromaVectorStore**: Integrates native FAISS or ChromaDB indexing when packages are installed, falling back gracefully to SQLite if missing.
+- **Pluggable Embedding Providers**: Supports Mock (1536 dim deterministic seed vectors), Google Gemini, and OpenAI API endpoints.
+- **Batching & Exponential Backoff Retries**: Generates embeddings in batches (`BATCH_SIZE = 32`) and automatically applies retries with exponential backoffs.
+
+#### Optimization Caching & Incremental Reindexing
+- **Embedding Cache**: Checks for matching chunk text contents in the database. Reuses existing vectors and skips redundant provider calls.
+- **Incremental Reindexing**: When reindexing, the pipeline compares new chunks to old chunks, keeping matching vectors and only requesting embeddings for changed/modified sections.
+
+#### API Route Summary
+Routes under `/api/v1/documents/` and `/api/v1/search/`:
+- `POST /api/v1/documents/upload`: Multi-file background uploading.
+- `GET /api/v1/documents`: List/filter documents.
+- `GET /api/v1/documents/{id}/status`: Ingestion status (`pending`, `processing`, `indexed`, `failed`).
+- `DELETE /api/v1/documents/{id}`: Cascadely purges files, DB chunks, embeddings, and caches.
+- `POST /api/v1/documents/{id}/reindex`: Triggers incremental document reindexing.
+- `POST /api/v1/search/similarity`: Similarity search using metadata filters.
+- `POST /api/v1/search/vector`: Similarity search returning raw float coordinates.
+- `GET /api/v1/search/statistics`: Ingestion statistics summary.
+- `GET /api/v1/search/providers/health`: Status checks for vector store and embedding provider connections.
+
+---
+
+### 7. RAG Engine & Memory System (Sprint 008B)
+
+The ecosystem includes a production-ready RAG Engine and Enterprise Memory System.
+
+#### Four-Layer Memory System
+- **Session Memory**: Key-value data mapped to active agent session scopes.
+- **Conversation Memory**: Dialogue history threads stored in the `conversations` and `messages` tables.
+- **Long-Term Memory**: Persistent key-value facts mapped to specific keys.
+- **Knowledge Memory**: Semantic collections indexed via document chunks.
+- **Memory Providers**: Configurable memory stores supporting SQLite (database entries), Redis (in-memory expirations), and File (JSON database backups) backends.
+
+#### Conversation summarization & Pruning
+- **Compression Summarizer**: Automatically compiles old dialogue rounds into a single fact sheet stored in `Conversation.summary` when messages exceed `MEMORY_SUMMARY_TRIGGER_MESSAGES` (default 10) or `MEMORY_SUMMARY_TRIGGER_TOKENS` (default 2000). Prunes older detail logs, leaving the last 2 local chat rounds to maintain conversational flow.
+
+#### Knowledge Collections & Access Control
+- **Collection Permissions**: Groups documents into Knowledge Collections of type:
+  - `public`: Accessible to everyone.
+  - `personal`: Accessible only to the creator (`owner_id == user_id`).
+  - `team`: Shared within owner group scopes.
+- **Access Filters**: Checks user permissions during the retrieval step, excluding unauthorized documents from prompt contexts.
+
+#### Hybrid Retrieval & Explainability
+- **Hybrid Retrieval**: Combines Vector similarity and Keyword term overlaps using reciprocal linear weights.
+- **Reranker Service**: Contexts are ranked using a word-overlap MockReranker, or forwarded to Gemini/OpenAI API prompts.
+- **Retrieval Explainability**: Endpoint `/api/v1/rag/explain` details retrieved documents, chunk IDs, similarity and reranking scores, memory hits, and estimated final prompt tokens.
+
+#### API Route Summary
+Routes under `/api/v1/memory/`, `/api/v1/conversations/`, and `/api/v1/rag/`:
+- `GET /api/v1/memory`: List memory items by type.
+- `DELETE /api/v1/memory`: Clear memory items by type.
+- `POST /api/v1/memory/search`: Search specific memory key.
+- `POST /api/v1/conversations`: Start conversation session.
+- `GET /api/v1/conversations`: List active threads.
+- `DELETE /api/v1/conversations/{id}`: Purge thread and cascade messages.
+- `GET /api/v1/conversations/{id}/messages`: View history turns.
+- `POST /api/v1/rag/chat`: Context-aware conversational generation.
+- `POST /api/v1/rag/search`: Retrieve ranked contexts.
+- `POST /api/v1/rag/context`: View formatted context text.
+- `GET /api/v1/rag/explain`: Diagnostic queries metrics.
+- `GET /api/v1/rag/providers`: Active provider configurations list.
+
+---
+
+### 8. Multi-Agent Collaboration & Workflow Orchestration (Sprint 009)
+
+The ecosystem includes a production-grade Multi-Agent Collaboration Engine and Workflow Orchestrator.
+
+#### Workflow Versioning & Templates
+- **Versioning Control**: Modifying a workflow definition creates a new record with an incremented version, setting the older version `is_active = False` to preserve historical integrity.
+- **Reusable Templates**: Seeds standard system templates (Research, Coding, Document Analysis, Multi-Agent Review) to run pipelines directly.
+
+#### Agent Capability Registry & Orchestration
+- **Capability Routing**: Agents register capability tags (e.g. `chat`, `coding`, `research`, `document`, `planning`, `analysis`). The central `AgentOrchestrator` resolves agent assignments at runtime based on task needs rather than hardcoding agent IDs.
+- **Orchestrated Communication**: Prevents direct communication between agents. All message exchanges pass through the orchestrator transit hub.
+
+#### Dead Letter Queue (DLQ)
+- **DLQ Model & API**: When a task exhausts all retries, the orchestrator writes the failure reason, retry attempts, and stack traces to `DeadLetterQueue` tables. Accessible via `GET /api/v1/workflows/dead-letter`.
+
+#### Human-in-the-Loop & State Manager
+- **Suspension Pauses**: Steps requesting human approval suspend workflow executions. Resuming is triggered via API overrides which mark tasks as approved or rejected.
+- **Event Bus & State Sync**: An in-memory broker logs lifecycle events (`WorkflowStarted`, `TaskCompleted`, `AgentFinished`) and saves contexts directly into the database.
+
+#### API Route Summary
+Routes under `/api/v1/workflows/`:
+- `POST /api/v1/workflows`: Create/update workflow (registers new version).
+- `GET /api/v1/workflows`: List active workflows and templates.
+- `GET /api/v1/workflows/dead-letter`: View DLQ failure records.
+- `GET /api/v1/workflows/{id}`: Fetch template version details.
+- `POST /api/v1/workflows/{id}/execute`: Trigger execution asynchronously.
+- `POST /api/v1/workflows/{id}/pause`: Pause running execution.
+- `POST /api/v1/workflows/{id}/resume`: Resume execution and approve human overrides.
+- `POST /api/v1/workflows/{id}/cancel`: Cancel execution.
+- `GET /api/v1/workflows/{id}/status`: Progress tracking.
+- `GET /api/v1/tasks`: List all tasks.
+- `GET /api/v1/tasks/{id}`: Fetch task details.
+- `GET /api/v1/orchestrator/status`: System counts (latencies, running agents, queue length).
+
+
+
+
 
 
