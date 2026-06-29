@@ -58,7 +58,7 @@ def test_protected_routes_authorized(client: TestClient):
     response = client.get("/api/v1/users/me", headers=headers)
     assert response.status_code == 200
     data = response.json()
-    assert data["email"] == "testuser@example.com"
+    assert data["data"]["email"] == "testuser@example.com"
 
 def test_admin_only_forbidden_for_user(client: TestClient):
     # Login as standard USER

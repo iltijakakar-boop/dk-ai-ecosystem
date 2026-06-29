@@ -37,6 +37,31 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER: str = "admin@example.com"
     FIRST_SUPERUSER_PASSWORD: str = "Admin@123"  # Conforms to password policies
 
+    # AI Core settings
+    AI_PROVIDER: str = "gemini"
+    DEFAULT_MODEL: str = "gemini-2.5-flash"
+    API_TIMEOUT: int = 30
+    MAX_CONTEXT_LENGTH: int = 8192
+    MAX_OUTPUT_TOKENS: int = 2048
+
+    # Provider API keys and endpoints
+    GEMINI_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""
+    ANTHROPIC_API_KEY: str = ""
+    OPENROUTER_API_KEY: str = ""
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+
+    # Observability & Monitoring settings
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "TEXT"  # TEXT or JSON
+    ENABLE_FILE_LOGGING: bool = False
+    ENABLE_JSON_LOGGING: bool = False
+    METRICS_ENABLED: bool = True
+    TRACE_ENABLED: bool = False
+    REQUEST_ID_ENABLED: bool = True
+    METRICS_RETENTION_DAYS: int = 30
+    LOG_RETENTION_DAYS: int = 7
+
     model_config = SettingsConfigDict(
         case_sensitive=True,
         env_file=".env",

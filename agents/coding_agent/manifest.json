@@ -1,0 +1,10 @@
+{
+  "id": "coding_agent",
+  "name": "Coding Agent",
+  "version": "1.0.0",
+  "author": "DK AI Ecosystem",
+  "description": "Programming assistant and code linting advisor.",
+  "provider": "gemini",
+  "enabled": true,
+  "tools": ["code_linter"]
+}

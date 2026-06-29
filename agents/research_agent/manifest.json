@@ -1,0 +1,10 @@
+{
+  "id": "research_agent",
+  "name": "Research Agent",
+  "version": "1.0.0",
+  "author": "DK AI Ecosystem",
+  "description": "Research and web analysis assistant.",
+  "provider": "gemini",
+  "enabled": true,
+  "tools": ["web_search"]
+}

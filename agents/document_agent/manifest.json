@@ -1,0 +1,10 @@
+{
+  "id": "document_agent",
+  "name": "Document Agent",
+  "version": "1.0.0",
+  "author": "DK AI Ecosystem",
+  "description": "Document parsing and summarization assistant.",
+  "provider": "gemini",
+  "enabled": true,
+  "tools": ["document_parser"]
+}

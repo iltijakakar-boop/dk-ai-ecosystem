@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
-from app.db.session import engine, Base
+from app.db.session import engine
+from app.db.base import Base
 from app.models.user import User, UserRole
 from app.core.security import get_password_hash
 from app.config.settings import settings
@@ -7,6 +8,10 @@ from app.config.settings import settings
 def init_db(db: Session) -> None:
     # Ensure all tables are created
     Base.metadata.create_all(bind=engine)
+    
+    # Trigger database schema migrations
+    from app.db.migrations import run_migrations
+    run_migrations()
     
     # Seed the initial superuser if not already present
     superuser = db.query(User).filter(User.email == settings.FIRST_SUPERUSER).first()

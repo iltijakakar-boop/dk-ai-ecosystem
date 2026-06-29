@@ -1,10 +1,22 @@
+import sys
+from pathlib import Path
+
+# Add project root workspace directory to sys.path to allow imports of ai and agents packages
+project_root = Path(__file__).resolve().parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from app.config.settings import settings
+# Force database URL to test.db to isolate test runs
+settings.DATABASE_URL = "sqlite:///./test.db"
+
 import pytest
 from typing import Generator
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.main import app
-from app.db.session import Base
+from app.db.base import Base
 from app.dependencies.db import get_db
 from app.dependencies.redis import get_redis
 

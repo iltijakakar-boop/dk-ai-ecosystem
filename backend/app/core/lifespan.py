@@ -48,6 +48,26 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to connect to Redis: {e}")
         app.state.redis_client = None
 
+    # Discover and load cognitive AI agents
+    try:
+        from ai.core.agent_manager import agent_manager
+        agent_manager.discover_agents()
+        logger.info(f"Successfully loaded agents on startup: {[a['id'] for a in agent_manager.list_agents()]}")
+    except Exception as e:
+        logger.error(f"Failed to discover and register agents on startup: {e}")
+
+    # Discover and load tools and plugins
+    try:
+        from ai.tools.tool_registry import tool_registry
+        from plugins.runtime.plugin_loader import plugin_loader
+        tool_registry.discover_builtin_tools()
+        plugin_loader.discover_and_load_plugins()
+        logger.info(f"Successfully loaded tools on startup: {[t['tool_id'] for t in tool_registry.list_tools()]}")
+    except Exception as e:
+        logger.error(f"Failed to discover and register tools on startup: {e}")
+
+
+
     yield
 
     # Graceful shutdown

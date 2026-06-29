@@ -1,0 +1,10 @@
+{
+  "id": "chat_agent",
+  "name": "Chat Agent",
+  "version": "1.0.0",
+  "author": "DK AI Ecosystem",
+  "description": "General conversational AI agent.",
+  "provider": "gemini",
+  "enabled": true,
+  "tools": []
+}
