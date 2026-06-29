@@ -15,13 +15,23 @@ async def lifespan(app: FastAPI):
     # Record startup time
     app.state.start_time = time.time()
 
-    # Database engine verification
+    # Database engine verification and initialization
     try:
         with engine.connect() as conn:
             logger.info("Successfully connected to the Database.")
             app.state.db_connected = True
+        
+        # Run DB initialization and seed superuser
+        from app.db.session import SessionLocal
+        from app.db.init_db import init_db
+        db = SessionLocal()
+        try:
+            init_db(db)
+            logger.info("Database tables initialized and seeded successfully.")
+        finally:
+            db.close()
     except Exception as e:
-        logger.error(f"Failed to connect to the Database: {e}")
+        logger.error(f"Failed to connect to or initialize the Database: {e}")
         app.state.db_connected = False
 
     # Redis connection pool initialization

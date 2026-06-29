@@ -12,7 +12,9 @@ backend/
 │   │   └── v1/               # API version 1 routers
 │   │       ├── router.py     # Version 1 router
 │   │       └── endpoints/    # Route handlers/controllers
-│   │           └── health.py # Health status checker endpoint
+│   │           ├── auth.py   # Registration, Login, Token Refresh, Logout endpoints
+│   │           ├── health.py # Health status checker endpoint
+│   │           └── users.py  # User profile and admin test route endpoints
 │   ├── core/                 # Core utilities
 │   │   ├── exceptions.py     # Custom application exceptions
 │   │   ├── lifespan.py       # Startup and shutdown resource setup
@@ -30,15 +32,23 @@ backend/
 │   │   └── session.py        # SQLAlchemy connections
 │   ├── middleware/           # Custom middlewares
 │   ├── models/               # SQLAlchemy Database models
+│   │   └── user.py           # User model and UserRole enums definition
 │   ├── repositories/         # Repository patterns for queries
+│   │   └── user.py           # User CRUD repository definitions
 │   ├── schemas/              # Pydantic schemas
+│   │   ├── token.py          # Token payload and refresh schemas
+│   │   └── user.py           # User creation, update, and response validation schemas
 │   ├── services/             # Business logic services
 │   ├── utils/                # Helper utilities
 │   └── dependencies/         # FastAPI Dependency Injection
+│       ├── auth.py           # User auth and Role checks dependencies
 │       ├── db.py             # Database session dependency
+│       ├── rate_limit.py     # Redis login rate limiting dependency
 │       └── redis.py          # Redis connection dependency
 │
 ├── tests/                    # Pytest test cases and conftest setup
+│   ├── test_auth.py          # Auth validation, login, and RBAC tests
+│   └── test_main.py          # Startup and health check tests
 ├── migrations/               # Alembic database schema migrations
 ├── requirements/             # Partitioned Python requirements (base, dev, prod)
 ├── Dockerfile                # Multi-stage Docker packaging configuration
@@ -47,6 +57,23 @@ backend/
 ├── .env.example              # Sample environment configuration template
 └── README.md                 # Project developer notes
 ```
+
+## Security Features
+
+1. **Authentication (JWT & Refresh)**:
+   - Registers users via `/auth/register` with active schema checks.
+   - Logs users in via `/auth/login` to obtain access and refresh tokens.
+   - Access tokens contain claims for subject (`sub`), `email`, `role`, `type`, `iat`, and `exp`.
+   - Refreshes expired access tokens via `/auth/refresh`.
+   - Logs users out via `/auth/logout`, storing the token signature inside the Redis blacklist.
+2. **Role-Based Access Control (RBAC)**:
+   - Roles are strictly defined as `UserRole` enum values: `SUPER_ADMIN`, `ADMIN`, `USER`.
+   - Endpoints are protected by injecting the `RoleChecker([Role...])` class-based dependency.
+3. **Password Policy**:
+   - Minimum of 8 characters.
+   - Must contain at least one uppercase letter, one lowercase letter, one number, and one special character.
+4. **Rate Limiting**:
+   - Enforces a rate limit of 5 login attempts per 5 minutes per client IP using Redis.
 
 ## Setup & Running locally
 
@@ -75,7 +102,6 @@ You can spin up the application along with PostgreSQL and Redis (configured with
 ```bash
 docker compose up --build
 ```
-This runs the `web` application, `db` (PostgreSQL), and `redis` services together.
 
 ## Running Tests
 Run tests locally using pytest:

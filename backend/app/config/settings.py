@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "your-super-secret-key-change-it-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
+    # Initial Admin Seeding Credentials
+    FIRST_SUPERUSER: str = "admin@example.com"
+    FIRST_SUPERUSER_PASSWORD: str = "Admin@123"  # Conforms to password policies
 
     model_config = SettingsConfigDict(
         case_sensitive=True,
