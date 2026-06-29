@@ -7,20 +7,23 @@ from app.core.logging import logger
 from ai.tools.tool_registry import tool_registry
 from ai.tools.base_tool import BaseTool
 
+
 class ToolExecutor:
     """
     Executes tools safely, verifying permissions and schemas,
     enforcing timeouts, and logging execution statistics to the database.
     """
-    
-    def check_permissions(self, tool: BaseTool, context: Optional[Dict[str, Any]] = None) -> bool:
+
+    def check_permissions(
+        self, tool: BaseTool, context: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """
         Validates execution permissions and allow/deny lists.
         """
         # Allow/Deny List checks from configurations
         tool_allow_list = getattr(settings, "TOOL_ALLOW_LIST", [])
         tool_deny_list = getattr(settings, "TOOL_DENY_LIST", [])
-        
+
         if tool_deny_list and tool.tool_id in tool_deny_list:
             return False
         if tool_allow_list and tool.tool_id not in tool_allow_list:
@@ -29,20 +32,22 @@ class ToolExecutor:
         # Validate context permissions
         if not tool.permissions:
             return True
-            
+
         allowed_permissions = (context or {}).get("permissions", [])
         for perm in tool.permissions:
             if perm not in allowed_permissions:
-                logger.warning(f"Permission denied: Tool '{tool.tool_id}' requires '{perm}'.")
+                logger.warning(
+                    f"Permission denied: Tool '{tool.tool_id}' requires '{perm}'."
+                )
                 return False
-                
+
         return True
 
     def execute_tool(
         self,
         tool_id: str,
         arguments: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Executes a registered tool with timeout and logs execution.
@@ -52,7 +57,7 @@ class ToolExecutor:
             return {
                 "success": False,
                 "result": None,
-                "error": f"Tool '{tool_id}' not found or is disabled."
+                "error": f"Tool '{tool_id}' not found or is disabled.",
             }
 
         # 1. Permission checks
@@ -60,7 +65,7 @@ class ToolExecutor:
             return {
                 "success": False,
                 "result": None,
-                "error": f"Permission denied for tool '{tool_id}'."
+                "error": f"Permission denied for tool '{tool_id}'.",
             }
 
         # 2. Schema Parameter validation
@@ -70,7 +75,7 @@ class ToolExecutor:
             return {
                 "success": False,
                 "result": None,
-                "error": f"Parameter validation error: {str(ve)}"
+                "error": f"Parameter validation error: {str(ve)}",
             }
 
         # Lifecycle hooks and Execution with Timeout
@@ -82,10 +87,10 @@ class ToolExecutor:
         try:
             # Hooks
             tool.before_execute(arguments, context=context)
-            
+
             # Execute with timeout wrapper
             timeout_limit = tool.timeout or getattr(settings, "MAX_TOOL_TIMEOUT", 5)
-            
+
             # Use ThreadPoolExecutor to enforce timeouts
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(tool.execute, **arguments)
@@ -94,7 +99,9 @@ class ToolExecutor:
                     result = tool.after_execute(result)
                     success = True
                 except concurrent.futures.TimeoutError:
-                    raise TimeoutError(f"Tool execution exceeded timeout of {timeout_limit} seconds.")
+                    raise TimeoutError(
+                        f"Tool execution exceeded timeout of {timeout_limit} seconds."
+                    )
 
         except Exception as ex:
             error_msg = f"{ex.__class__.__name__}: {str(ex)}"
@@ -111,21 +118,17 @@ class ToolExecutor:
             duration_ms=duration_ms,
             success=success,
             result=result,
-            error_msg=error_msg
+            error_msg=error_msg,
         )
 
         if not success:
             return {
                 "success": False,
                 "result": None,
-                "error": error_msg or "Unknown execution failure."
+                "error": error_msg or "Unknown execution failure.",
             }
 
-        return {
-            "success": True,
-            "result": result,
-            "error": None
-        }
+        return {"success": True, "result": result, "error": None}
 
     def _write_execution_log(
         self,
@@ -135,7 +138,7 @@ class ToolExecutor:
         duration_ms: float,
         success: bool,
         result: Any,
-        error_msg: Optional[str]
+        error_msg: Optional[str],
     ) -> None:
         """
         Commits execution results and timing to database logs.
@@ -143,7 +146,7 @@ class ToolExecutor:
         try:
             from app.db.session import SessionLocal
             from app.models.tool_model import ToolExecutionLog
-            
+
             db = SessionLocal()
             try:
                 log_entry = ToolExecutionLog(
@@ -155,7 +158,7 @@ class ToolExecutor:
                     status="success" if success else "error",
                     input=json.dumps(arguments),
                     output=json.dumps(result) if success else None,
-                    error=error_msg
+                    error=error_msg,
                 )
                 db.add(log_entry)
                 db.commit()
@@ -165,7 +168,10 @@ class ToolExecutor:
             finally:
                 db.close()
         except Exception as e:
-            logger.error(f"Database session not available for ToolExecutor logging: {e}")
+            logger.error(
+                f"Database session not available for ToolExecutor logging: {e}"
+            )
+
 
 # Global Executor instance
 tool_executor = ToolExecutor()

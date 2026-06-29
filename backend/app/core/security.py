@@ -1,8 +1,11 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Union
+
 import bcrypt
 from jose import jwt
+
 from app.config.settings import settings
+
 
 def create_access_token(
     subject: Union[str, Any], email: str, role: str, expires_delta: timedelta = None
@@ -12,7 +15,7 @@ def create_access_token(
         expire = now + expires_delta
     else:
         expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+
     to_encode = {
         "sub": str(subject),
         "email": email,
@@ -21,8 +24,11 @@ def create_access_token(
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
     }
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    encoded_jwt = jwt.encode(
+        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
     return encoded_jwt
+
 
 def create_refresh_token(
     subject: Union[str, Any], email: str, role: str, expires_delta: timedelta = None
@@ -32,7 +38,7 @@ def create_refresh_token(
         expire = now + expires_delta
     else:
         expire = now + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
-    
+
     to_encode = {
         "sub": str(subject),
         "email": email,
@@ -41,17 +47,20 @@ def create_refresh_token(
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
     }
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    encoded_jwt = jwt.encode(
+        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
     return encoded_jwt
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
         return bcrypt.checkpw(
-            plain_password.encode("utf-8"),
-            hashed_password.encode("utf-8")
+            plain_password.encode("utf-8"), hashed_password.encode("utf-8")
         )
     except Exception:
         return False
+
 
 def get_password_hash(password: str) -> str:
     salt = bcrypt.gensalt()

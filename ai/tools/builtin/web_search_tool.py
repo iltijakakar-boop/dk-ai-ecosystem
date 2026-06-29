@@ -1,10 +1,12 @@
 from typing import Any, Dict, List
 from ai.tools.base_tool import BaseTool
 
+
 class WebSearchTool(BaseTool):
     """
     Search engine simulation built-in tool.
     """
+
     @property
     def tool_id(self) -> str:
         return "web_search"
@@ -42,31 +44,34 @@ class WebSearchTool(BaseTool):
         return {
             "type": "object",
             "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Keywords or search phrase."
-                }
+                "query": {"type": "string", "description": "Keywords or search phrase."}
             },
-            "required": ["query"]
+            "required": ["query"],
         }
 
     def execute(self, **kwargs) -> Dict[str, Any]:
         query = kwargs.get("query", "")
         if not query:
             return {"error": "Search query cannot be empty."}
-            
+
         return {
             "query": query,
             "results": [
                 {
                     "title": f"Top resource matching: {query}",
-                    "snippet": f"This is an auto-generated search snippet explaining key definitions and concepts relating to '{query}'.",
-                    "url": f"https://example.com/search?q={query}"
+                    "snippet": (
+                        "This is an auto-generated search snippet explaining "
+                        f"key definitions and concepts relating to '{query}'."
+                    ),
+                    "url": f"https://example.com/search?q={query}",
                 },
                 {
                     "title": f"Detailed specifications for {query}",
-                    "snippet": f"Complete guide and expert notes detailing applications, parameters, and references for '{query}'.",
-                    "url": f"https://example.com/docs/{query}"
-                }
-            ]
+                    "snippet": (
+                        f"Complete guide and expert notes detailing "
+                        f"applications, parameters, and references for '{query}'."
+                    ),
+                    "url": f"https://example.com/docs/{query}",
+                },
+            ],
         }

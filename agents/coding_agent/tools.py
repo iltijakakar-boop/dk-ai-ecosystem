@@ -1,10 +1,12 @@
 from ai.tools.base_tool import BaseTool
 from typing import Any, Dict
 
+
 class CodeLinterTool(BaseTool):
     """
     Validates Python syntax.
     """
+
     @property
     def tool_id(self) -> str:
         return "code_linter"
@@ -28,10 +30,10 @@ class CodeLinterTool(BaseTool):
             "properties": {
                 "code": {
                     "type": "string",
-                    "description": "The Python source code to check."
+                    "description": "The Python source code to check.",
                 }
             },
-            "required": ["code"]
+            "required": ["code"],
         }
 
     def execute(self, **kwargs) -> Dict[str, Any]:

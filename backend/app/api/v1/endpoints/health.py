@@ -1,23 +1,25 @@
 import platform
 import time
 from datetime import datetime
+from typing import Optional
+
+import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-import redis.asyncio as aioredis
-from typing import Optional
 
+from app.config.settings import settings
 from app.dependencies.db import get_db
 from app.dependencies.redis import get_redis
-from app.config.settings import settings
 
 router = APIRouter()
+
 
 @router.get("", response_model=dict)
 async def health_check(
     request: Request,
     db: Session = Depends(get_db),
-    redis_client: Optional[aioredis.Redis] = Depends(get_redis)
+    redis_client: Optional[aioredis.Redis] = Depends(get_redis),
 ):
     # Database status check
     db_status = "disconnected"
@@ -26,7 +28,7 @@ async def health_check(
         db_status = "connected"
     except Exception:
         pass
-    
+
     # Redis status check
     redis_status = "disconnected"
     if redis_client is not None:
@@ -53,5 +55,5 @@ async def health_check(
         "uptime": uptime_str,
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "python_version": platform.python_version(),
-        "api_version": "v1"
+        "api_version": "v1",
     }

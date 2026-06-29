@@ -1,7 +1,6 @@
-from typing import Dict, List
-
 from .provider_registry import ProviderRegistry
 from .circuit_breaker import CircuitBreaker
+from .base_provider import BaseProvider
 from backend.app.config.settings import settings
 
 
@@ -17,7 +16,7 @@ class Router:
         self.circuit_breaker = CircuitBreaker()
         # Future: load routing policies from settings (e.g., cost, latency)
 
-    def select_provider(self) -> object:
+    def select_provider(self) -> BaseProvider:
         """Return an instantiated provider ready to handle a request.
 
         The circuit breaker is consulted first. If the default provider is

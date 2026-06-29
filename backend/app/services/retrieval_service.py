@@ -1,12 +1,14 @@
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy.orm import Session
+
+from app.core.logging.logger import logger
 from app.db.session import SessionLocal
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.knowledge_collection import KnowledgeCollection
 from app.services.search_service import search_service
-from app.config.settings import settings
-from app.core.logging.logger import logger
+
 
 class RetrievalService:
     """
@@ -20,7 +22,7 @@ class RetrievalService:
         top_k: int = 5,
         filters: Optional[Dict[str, Any]] = None,
         search_type: str = "hybrid",
-        user_id: Optional[int] = None
+        user_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
         Ingests the query, executes retrieval searches depending on search_type,
@@ -30,7 +32,7 @@ class RetrievalService:
         try:
             # 1. Collect candidate results based on retrieval type
             candidates = []
-            
+
             # Vector Retrieval
             if search_type == "vector":
                 candidates = self._vector_search(query, top_k * 2, filters)
@@ -44,26 +46,35 @@ class RetrievalService:
             # 2. Filter candidate document chunks based on ownership permissions
             filtered_results = []
             for chunk_id, score in candidates:
-                chunk = db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first()
+                chunk = (
+                    db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first()
+                )
                 if not chunk:
                     continue
-                
-                doc = db.query(Document).filter(Document.id == chunk.document_id).first()
+
+                doc = (
+                    db.query(Document).filter(Document.id == chunk.document_id).first()
+                )
                 if not doc:
                     continue
 
                 # Check Access Control Permissions
                 if not self._user_has_access(db, doc, user_id):
-                    logger.warning(f"Permission denied for user {user_id} accessing document {doc.original_filename}")
+                    logger.warning(
+                        f"Permission denied for user {user_id} accessing "
+                        f"document {doc.original_filename}"
+                    )
                     continue
 
-                filtered_results.append({
-                    "chunk_id": chunk.id,
-                    "text": chunk.text,
-                    "score": score,
-                    "document_id": chunk.document_id,
-                    "filename": doc.original_filename
-                })
+                filtered_results.append(
+                    {
+                        "chunk_id": chunk.id,
+                        "text": chunk.text,
+                        "score": score,
+                        "document_id": chunk.document_id,
+                        "filename": doc.original_filename,
+                    }
+                )
 
             # Return top_k elements
             return filtered_results[:top_k]
@@ -71,7 +82,9 @@ class RetrievalService:
         finally:
             db.close()
 
-    def _user_has_access(self, db: Session, doc: Document, user_id: Optional[int]) -> bool:
+    def _user_has_access(
+        self, db: Session, doc: Document, user_id: Optional[int]
+    ) -> bool:
         """
         Enforces collection access control:
         - Public: permitted to everyone.
@@ -79,15 +92,19 @@ class RetrievalService:
         - Team: permitted if owner_id == user_id or uploader shares team index.
         """
         if doc.collection_id is None:
-            return True # Loose documents without collection are public by default
+            return True  # Loose documents without collection are public by default
 
-        collection = db.query(KnowledgeCollection).filter(KnowledgeCollection.id == doc.collection_id).first()
+        collection = (
+            db.query(KnowledgeCollection)
+            .filter(KnowledgeCollection.id == doc.collection_id)
+            .first()
+        )
         if not collection:
             return True
 
         if collection.collection_type == "public":
             return True
-        
+
         if user_id is None:
             return False
 
@@ -100,15 +117,21 @@ class RetrievalService:
 
         return False
 
-    def _vector_search(self, query: str, top_k: int, filters: Optional[Dict[str, Any]]) -> List[tuple]:
+    def _vector_search(
+        self, query: str, top_k: int, filters: Optional[Dict[str, Any]]
+    ) -> List[tuple]:
         """
         Queries vector embeddings.
         """
         # Call Sprint 008A search service
-        matches = search_service.search_similarity(query_text=query, top_k=top_k, filters=filters)
+        matches = search_service.search_similarity(
+            query_text=query, top_k=top_k, filters=filters
+        )
         return [(m["chunk_id"], m["score"]) for m in matches]
 
-    def _keyword_search(self, db: Session, query: str, top_k: int, filters: Optional[Dict[str, Any]]) -> List[tuple]:
+    def _keyword_search(
+        self, db: Session, query: str, top_k: int, filters: Optional[Dict[str, Any]]
+    ) -> List[tuple]:
         """
         Queries keyword matches in SQLite using standard word intersections.
         """
@@ -120,10 +143,14 @@ class RetrievalService:
         chunks_query = db.query(DocumentChunk).join(Document)
         if filters:
             if "filename" in filters:
-                chunks_query = chunks_query.filter(Document.original_filename == filters["filename"])
+                chunks_query = chunks_query.filter(
+                    Document.original_filename == filters["filename"]
+                )
             if "document_type" in filters:
                 ext = "." + filters["document_type"].lower().strip(".")
-                chunks_query = chunks_query.filter(Document.original_filename.like(f"%{ext}"))
+                chunks_query = chunks_query.filter(
+                    Document.original_filename.like(f"%{ext}")
+                )
 
         chunks = chunks_query.all()
         scored_chunks = []
@@ -137,7 +164,9 @@ class RetrievalService:
         scored_chunks.sort(key=lambda x: x[1], reverse=True)
         return scored_chunks[:top_k]
 
-    def _hybrid_search(self, db: Session, query: str, top_k: int, filters: Optional[Dict[str, Any]]) -> List[tuple]:
+    def _hybrid_search(
+        self, db: Session, query: str, top_k: int, filters: Optional[Dict[str, Any]]
+    ) -> List[tuple]:
         """
         Combines vector similarity and keyword frequencies.
         """
@@ -158,6 +187,7 @@ class RetrievalService:
 
         sorted_results = sorted(merged_scores.items(), key=lambda x: x[1], reverse=True)
         return sorted_results[:top_k]
+
 
 # Global RetrievalService instance
 retrieval_service = RetrievalService()

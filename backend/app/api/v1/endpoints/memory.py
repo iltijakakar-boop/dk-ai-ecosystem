@@ -1,18 +1,21 @@
+from typing import Any, Dict, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
+
 from app.dependencies.db import get_db
-from app.schemas.response import APIResponse
-from app.schemas.rag import MemorySearchRequest, MemoryEntryResponse
 from app.models.memory_entry import MemoryEntry
+from app.schemas.rag import MemoryEntryResponse, MemorySearchRequest
+from app.schemas.response import APIResponse
 from app.services.memory_service import memory_service
 
 router = APIRouter(prefix="/memory", tags=["memory"])
 
+
 @router.get("", response_model=APIResponse[List[MemoryEntryResponse]])
 def list_memory_keys(
     memory_type: str = Query("long_term", description="session, long_term"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Lists memory entries filtered by type.
@@ -34,7 +37,7 @@ def clear_memory_by_type(
     return APIResponse(
         success=True,
         data={"memory_type": memory_type},
-        message=f"Memory category '{memory_type}' cleared successfully."
+        message=f"Memory category '{memory_type}' cleared successfully.",
     )
 
 
@@ -43,12 +46,16 @@ def search_memory_key(payload: MemorySearchRequest, db: Session = Depends(get_db
     """
     Searches for a specific memory entry by key.
     """
-    entry = db.query(MemoryEntry).filter(
-        MemoryEntry.key == payload.key,
-        MemoryEntry.memory_type == payload.memory_type
-    ).first()
-    
+    entry = (
+        db.query(MemoryEntry)
+        .filter(
+            MemoryEntry.key == payload.key,
+            MemoryEntry.memory_type == payload.memory_type,
+        )
+        .first()
+    )
+
     if not entry:
         raise HTTPException(status_code=404, detail="Memory key not found.")
-        
+
     return APIResponse(success=True, data=MemoryEntryResponse.model_validate(entry))

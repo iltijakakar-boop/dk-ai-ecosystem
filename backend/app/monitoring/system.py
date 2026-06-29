@@ -1,6 +1,6 @@
-import time
 import threading
-from typing import Dict, Any
+import time
+from typing import Any, Dict
 
 try:
     import psutil
@@ -10,13 +10,14 @@ except ImportError:
 # Timestamp recorded at module import time to measure process uptime
 _start_time = time.time()
 
+
 def get_system_metrics() -> Dict[str, Any]:
     """
     Polls active system hardware stats and thread counts.
     """
     uptime = time.time() - _start_time
     thread_count = threading.active_count()
-    
+
     if psutil:
         try:
             cpu = psutil.cpu_percent(interval=None)
@@ -39,5 +40,5 @@ def get_system_metrics() -> Dict[str, Any]:
         "disk": disk,
         "uptime": uptime,
         "thread_count": thread_count,
-        "open_connections": open_connections
+        "open_connections": open_connections,
     }

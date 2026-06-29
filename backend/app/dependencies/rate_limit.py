@@ -1,12 +1,14 @@
-from fastapi import Depends, HTTPException, Request, status
-import redis.asyncio as aioredis
 from typing import Optional
-from app.dependencies.redis import get_redis
+
+import redis.asyncio as aioredis
+from fastapi import Depends, HTTPException, Request, status
+
 from app.core.logging import logger
+from app.dependencies.redis import get_redis
+
 
 async def login_rate_limiter(
-    request: Request,
-    redis_client: Optional[aioredis.Redis] = Depends(get_redis)
+    request: Request, redis_client: Optional[aioredis.Redis] = Depends(get_redis)
 ) -> None:
     """
     Enforces a rate limit of 5 login attempts per 5 minutes per client IP.
@@ -23,9 +25,9 @@ async def login_rate_limiter(
         if attempts and int(attempts) >= 5:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many login attempts from this IP. Please try again in 5 minutes."
+                detail="Too many login attempts from this IP. Please try again in 5 minutes.",
             )
-        
+
         # Increment attempts and set expiration to 5 minutes
         pipe = redis_client.pipeline()
         await pipe.incr(key)

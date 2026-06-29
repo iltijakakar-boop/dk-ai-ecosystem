@@ -3,10 +3,12 @@ import operator
 from typing import Any, Dict, List
 from ai.tools.base_tool import BaseTool
 
+
 class CalculatorTool(BaseTool):
     """
     Built-in safe mathematical calculator tool.
     """
+
     # Map AST operators to safe callables
     _ALLOWED_OPERATORS = {
         ast.Add: operator.add,
@@ -15,7 +17,7 @@ class CalculatorTool(BaseTool):
         ast.Div: operator.truediv,
         ast.Pow: operator.pow,
         ast.USub: operator.neg,
-        ast.UAdd: operator.pos
+        ast.UAdd: operator.pos,
     }
 
     @property
@@ -57,10 +59,10 @@ class CalculatorTool(BaseTool):
             "properties": {
                 "expression": {
                     "type": "string",
-                    "description": "The math expression string to calculate (e.g. '2 * (3 + 4)')."
+                    "description": "The math expression string to calculate (e.g. '2 * (3 + 4)').",
                 }
             },
-            "required": ["expression"]
+            "required": ["expression"],
         }
 
     def _safe_eval(self, node: ast.AST) -> float:
@@ -73,21 +75,27 @@ class CalculatorTool(BaseTool):
         elif isinstance(node, ast.BinOp):
             op_cls = type(node.op)
             if op_cls not in self._ALLOWED_OPERATORS:
-                raise NotImplementedError(f"Unsupported math operator: {op_cls.__name__}")
+                raise NotImplementedError(
+                    f"Unsupported math operator: {op_cls.__name__}"
+                )
             left_val = self._safe_eval(node.left)
             right_val = self._safe_eval(node.right)
-            
+
             # Prevent DivisionByZero or execution size overflow
             if op_cls == ast.Div and right_val == 0:
                 raise ZeroDivisionError("Division by zero is not allowed.")
             if op_cls == ast.Pow and (abs(left_val) > 1000 or abs(right_val) > 100):
-                raise ValueError("Exponentiation limits exceeded to prevent CPU overflow.")
-                
+                raise ValueError(
+                    "Exponentiation limits exceeded to prevent CPU overflow."
+                )
+
             return self._ALLOWED_OPERATORS[op_cls](left_val, right_val)
         elif isinstance(node, ast.UnaryOp):
             op_cls = type(node.op)
             if op_cls not in self._ALLOWED_OPERATORS:
-                raise NotImplementedError(f"Unsupported unary operator: {op_cls.__name__}")
+                raise NotImplementedError(
+                    f"Unsupported unary operator: {op_cls.__name__}"
+                )
             operand_val = self._safe_eval(node.operand)
             return self._ALLOWED_OPERATORS[op_cls](operand_val)
         else:
@@ -102,8 +110,4 @@ class CalculatorTool(BaseTool):
         expr_stripped = "".join(expression.split())
         tree = ast.parse(expr_stripped, mode="eval")
         res_val = self._safe_eval(tree.body)
-        return {
-            "expression": expression,
-            "result": res_val
-        }
-
+        return {"expression": expression, "result": res_val}

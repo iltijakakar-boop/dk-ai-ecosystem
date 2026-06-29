@@ -20,8 +20,19 @@ class MockProvider(BaseProvider):
         return {
             "id": f"mock-chat-{self.call_count}",
             "model": "mock-chat-model",
-            "choices": [{"message": {"role": "assistant", "content": f"Mock response to: {user_msg}"}}],
-            "usage": {"prompt_tokens": len(user_msg.split()), "completion_tokens": 5, "total_tokens": len(user_msg.split()) + 5},
+            "choices": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": f"Mock response to: {user_msg}",
+                    }
+                }
+            ],
+            "usage": {
+                "prompt_tokens": len(user_msg.split()),
+                "completion_tokens": 5,
+                "total_tokens": len(user_msg.split()) + 5,
+            },
         }
 
     def embed(self, texts: List[str], **kwargs) -> List[List[float]]:

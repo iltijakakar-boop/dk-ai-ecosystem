@@ -1,24 +1,23 @@
 import sys
 from pathlib import Path
 
-# Add project root workspace directory to sys.path to allow imports of ai and agents packages
+# Add project root workspace directory to sys.path to allow imports of ai and agents
+# packages
 project_root = Path(__file__).resolve().parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
 from app.api.router import api_router
 from app.config.settings import settings
-from app.core.lifespan import lifespan
 from app.core.exceptions import APIException
-from app.core.logging import logger
+from app.core.lifespan import lifespan
+from app.core.logging import RequestLoggingMiddleware, logger
 from app.middleware.request_id import RequestIDMiddleware
-from app.core.logging import RequestLoggingMiddleware
-
-
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -44,6 +43,7 @@ if settings.BACKEND_CORS_ORIGINS:
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+
 @app.exception_handler(APIException)
 async def api_exception_handler(request: Request, exc: APIException):
     logger.error(f"API Error: {exc.detail}")
@@ -51,6 +51,7 @@ async def api_exception_handler(request: Request, exc: APIException):
         status_code=exc.status_code,
         content={"success": False, "error": exc.detail},
     )
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -65,10 +66,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"success": False, "error": errors},
     )
 
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled system exception:")
     from fastapi import HTTPException
+
     if isinstance(exc, HTTPException):
         return JSONResponse(
             status_code=exc.status_code,
@@ -79,6 +82,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"success": False, "error": "An internal server error occurred."},
     )
 
+
 @app.get("/", tags=["root"])
 def read_root():
     return {
@@ -86,5 +90,5 @@ def read_root():
         "description": settings.DESCRIPTION,
         "version": settings.VERSION,
         "status": "running",
-        "documentation_url": "/docs"
+        "documentation_url": "/docs",
     }

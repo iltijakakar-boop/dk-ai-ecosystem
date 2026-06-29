@@ -1,14 +1,15 @@
 import json
 from typing import Dict, Any, Optional
 from app.db.session import SessionLocal
-from app.models.workflow_model import WorkflowExecution, Task
+from app.models.workflow_model import WorkflowExecution
 from app.core.logging.logger import logger
+
 
 class StateManager:
     """
     Manages loading, updating, and saving execution contexts and statuses in the database.
     """
-    
+
     @staticmethod
     def get_execution_context(execution_id: int) -> Dict[str, Any]:
         """
@@ -16,7 +17,11 @@ class StateManager:
         """
         db = SessionLocal()
         try:
-            exec_obj = db.query(WorkflowExecution).filter(WorkflowExecution.id == execution_id).first()
+            exec_obj = (
+                db.query(WorkflowExecution)
+                .filter(WorkflowExecution.id == execution_id)
+                .first()
+            )
             if exec_obj and exec_obj.context:
                 return json.loads(exec_obj.context)
             return {}
@@ -30,7 +35,11 @@ class StateManager:
         """
         db = SessionLocal()
         try:
-            exec_obj = db.query(WorkflowExecution).filter(WorkflowExecution.id == execution_id).first()
+            exec_obj = (
+                db.query(WorkflowExecution)
+                .filter(WorkflowExecution.id == execution_id)
+                .first()
+            )
             if exec_obj:
                 ctx = json.loads(exec_obj.context) if exec_obj.context else {}
                 ctx[key] = value
@@ -43,13 +52,19 @@ class StateManager:
             db.close()
 
     @staticmethod
-    def update_execution_status(execution_id: int, status: str, current_step: Optional[str] = None) -> None:
+    def update_execution_status(
+        execution_id: int, status: str, current_step: Optional[str] = None
+    ) -> None:
         """
         Updates the overall workflow execution state and current active step.
         """
         db = SessionLocal()
         try:
-            exec_obj = db.query(WorkflowExecution).filter(WorkflowExecution.id == execution_id).first()
+            exec_obj = (
+                db.query(WorkflowExecution)
+                .filter(WorkflowExecution.id == execution_id)
+                .first()
+            )
             if exec_obj:
                 exec_obj.status = status
                 if current_step:

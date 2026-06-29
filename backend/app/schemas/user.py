@@ -1,10 +1,14 @@
 import re
-from typing import Optional, List
+from typing import List, Optional
+
 from pydantic import BaseModel, EmailStr, field_validator
+
 from app.models.user import UserRole
+
 
 class UserBase(BaseModel):
     email: EmailStr
+
 
 class UserCreate(UserBase):
     password: str
@@ -24,11 +28,13 @@ class UserCreate(UserBase):
             raise ValueError("Password must contain at least one special character.")
         return v
 
+
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
+
 
 class UserResponse(UserBase):
     id: int
@@ -37,6 +43,7 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+
 
 class UserChangePassword(BaseModel):
     old_password: str
@@ -57,11 +64,14 @@ class UserChangePassword(BaseModel):
             raise ValueError("Password must contain at least one special character.")
         return v
 
+
 class UserUpdateRole(BaseModel):
     role: UserRole
 
+
 class UserStatusUpdate(BaseModel):
     is_active: bool
+
 
 class PaginatedUserResponse(BaseModel):
     items: List[UserResponse]

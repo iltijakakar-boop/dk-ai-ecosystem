@@ -3,19 +3,23 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 from ai.tools.base_tool import BaseTool
 
+
 class AgentResponse(BaseModel):
     """
     Standardized response structure returned by all agents.
     """
+
     success: bool
     output: str
     error: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
+
 class BaseAgent(abc.ABC):
     """
     Abstract Base Class for all cognitive AI agents in the ecosystem.
     """
+
     def __init__(
         self,
         agent_id: str,
@@ -35,7 +39,9 @@ class BaseAgent(abc.ABC):
         self.memory = memory
 
     @abc.abstractmethod
-    def execute(self, input_text: str, context: Optional[Dict[str, Any]] = None) -> AgentResponse:
+    def execute(
+        self, input_text: str, context: Optional[Dict[str, Any]] = None
+    ) -> AgentResponse:
         """
         Executes the agent's cognitive loops, calling LLM provider and tools.
         """

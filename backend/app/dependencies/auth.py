@@ -1,26 +1,26 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
-from sqlalchemy.orm import Session
-import redis.asyncio as aioredis
 from typing import List, Optional
 
-from app.dependencies.db import get_db
-from app.dependencies.redis import get_redis
+import redis.asyncio as aioredis
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from sqlalchemy.orm import Session
+
 from app.config.settings import settings
 from app.core.exceptions import UnauthorizedException
-from app.repositories.user import user_repository
+from app.dependencies.db import get_db
+from app.dependencies.redis import get_redis
 from app.models.user import User, UserRole
+from app.repositories.user import user_repository
 from app.schemas.token import TokenPayload
 
-reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_STR}/auth/login"
-)
+reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
+
 
 async def get_current_user(
     db: Session = Depends(get_db),
     token: str = Depends(reusable_oauth2),
-    redis_client: Optional[aioredis.Redis] = Depends(get_redis)
+    redis_client: Optional[aioredis.Redis] = Depends(get_redis),
 ) -> User:
     # Check if the token is blacklisted in Redis
     if redis_client:
@@ -37,10 +37,10 @@ async def get_current_user(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         token_data = TokenPayload(**payload)
-        
+
         if token_data.type != "access":
             raise UnauthorizedException("Invalid token type")
-            
+
         if token_data.sub is None:
             raise UnauthorizedException("Could not validate credentials")
     except (JWTError, ValueError):
@@ -50,18 +50,17 @@ async def get_current_user(
     user = user_repository.get(db, id=int(token_data.sub))
     if not user:
         raise UnauthorizedException("User not found")
-        
+
     return user
 
-def get_current_active_user(
-    current_user: User = Depends(get_current_user)
-) -> User:
+
+def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
         )
     return current_user
+
 
 class RoleChecker:
     def __init__(self, allowed_roles: List[UserRole]):
@@ -71,6 +70,6 @@ class RoleChecker:
         if current_user.role not in self.allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="The user does not have enough privileges"
+                detail="The user does not have enough privileges",
             )
         return current_user

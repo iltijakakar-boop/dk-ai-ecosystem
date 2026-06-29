@@ -1,26 +1,33 @@
-from pydantic import BaseModel, Field, field_validator
-from datetime import datetime
-from typing import List, Dict, Any, Optional
 import json
+from datetime import datetime
+from typing import Any, Dict, Optional
+
+from pydantic import BaseModel, Field, field_validator
+
 
 class WorkflowCreate(BaseModel):
     workflow_id: Optional[str] = Field(None, example="research_and_code_workflow")
     name: str = Field(..., example="Research & Coding Workflow")
-    description: Optional[str] = Field(None, example="Automated multi-agent workflow for researching and linting code.")
-    definition: Dict[str, Any] = Field(..., example={
-        "steps": [
-            {
-                "name": "research_step",
-                "required_capability": "research",
-                "input": {"query": "FastAPI best practices"}
-            },
-            {
-                "name": "coding_step",
-                "required_capability": "coding",
-                "input": {"task": "Write basic API based on research_step.output"}
-            }
-        ]
-    })
+    description: Optional[str] = Field(
+        None, example="Automated multi-agent workflow for researching and linting code."
+    )
+    definition: Dict[str, Any] = Field(
+        ...,
+        example={
+            "steps": [
+                {
+                    "name": "research_step",
+                    "required_capability": "research",
+                    "input": {"query": "FastAPI best practices"},
+                },
+                {
+                    "name": "coding_step",
+                    "required_capability": "coding",
+                    "input": {"task": "Write basic API based on research_step.output"},
+                },
+            ]
+        },
+    )
     is_template: Optional[bool] = Field(False, example=False)
 
 
@@ -31,7 +38,9 @@ class WorkflowResponse(BaseModel):
     is_active: bool = Field(..., example=True)
     is_template: bool = Field(..., example=False)
     name: str = Field(..., example="Research & Coding Workflow")
-    description: Optional[str] = Field(None, example="Automated multi-agent workflow...")
+    description: Optional[str] = Field(
+        None, example="Automated multi-agent workflow..."
+    )
     definition: Dict[str, Any] = Field(..., example={"steps": []})
     created_at: datetime
 
@@ -49,7 +58,11 @@ class WorkflowResponse(BaseModel):
 class WorkflowExecutionResponse(BaseModel):
     id: int = Field(..., example=42)
     workflow_id: int = Field(..., example=1)
-    status: str = Field(..., example="running", description="pending, running, waiting, completed, failed, cancelled")
+    status: str = Field(
+        ...,
+        example="running",
+        description="pending, running, waiting, completed, failed, cancelled",
+    )
     current_step: Optional[str] = Field(None, example="coding_step")
     context: Dict[str, Any] = Field(..., example={"shared_var": "val"})
     started_at: datetime
@@ -70,7 +83,11 @@ class TaskResponse(BaseModel):
     id: int = Field(..., example=10)
     workflow_execution_id: int = Field(..., example=42)
     name: str = Field(..., example="coding_step")
-    status: str = Field(..., example="completed", description="pending, running, waiting, completed, failed, cancelled")
+    status: str = Field(
+        ...,
+        example="completed",
+        description="pending, running, waiting, completed, failed, cancelled",
+    )
     required_capability: Optional[str] = Field(None, example="coding")
     input_data: Dict[str, Any] = Field(..., example={})
     output_data: Optional[Dict[str, Any]] = Field(None, example={})
@@ -103,7 +120,9 @@ class DeadLetterQueueResponse(BaseModel):
     workflow_execution_id: int = Field(..., example=42)
     failure_reason: str = Field(..., example="Task timeout exceeded after 3 retries.")
     retry_count: int = Field(..., example=3)
-    stack_trace: Optional[str] = Field(None, example="Traceback (most recent call): ...")
+    stack_trace: Optional[str] = Field(
+        None, example="Traceback (most recent call): ..."
+    )
     timestamp: datetime
 
     class Config:

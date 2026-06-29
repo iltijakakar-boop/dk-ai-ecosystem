@@ -1,6 +1,8 @@
 from typing import List, Union
+
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
@@ -8,7 +10,7 @@ class Settings(BaseSettings):
     VERSION: str = "0.1.0"
     DESCRIPTION: str = "DK AI Ecosystem core backend services."
     ENVIRONMENT: str = "development"
-    
+
     # CORS Origins
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
 
@@ -101,14 +103,10 @@ class Settings(BaseSettings):
     REQUEST_TIMEOUT_SECONDS: int = 30
     RATE_LIMIT_PER_PROVIDER: int = 60
     COST_TRACKING_ENABLED: bool = True
-    OPENROUTER_API_KEY: str = ""
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
 
     model_config = SettingsConfigDict(
-        case_sensitive=True,
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
+        case_sensitive=True, env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
+
 
 settings = Settings()

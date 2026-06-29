@@ -1,15 +1,16 @@
 import pytest
 from fastapi.testclient import TestClient
+
 from app.db.session import SessionLocal
 from app.models.workflow_model import (
+    DeadLetterQueue,
+    Task,
     Workflow,
     WorkflowExecution,
-    Task,
-    DeadLetterQueue,
-    WorkflowLog
+    WorkflowLog,
 )
 from app.services.workflow_service import workflow_service
-from ai.orchestrator.orchestrator import agent_orchestrator
+
 
 @pytest.fixture(autouse=True)
 def clean_workflow_database():
@@ -36,9 +37,9 @@ def test_workflow_templates_seeding(client: TestClient):
     db = SessionLocal()
     try:
         workflow_service.seed_default_templates(db)
-        
+
         # Check count of seeded templates
-        templates_count = db.query(Workflow).filter(Workflow.is_template == True).count()
+        templates_count = db.query(Workflow).filter(Workflow.is_template).count()
         assert templates_count == 4
     finally:
         db.close()
@@ -53,7 +54,7 @@ def test_workflow_versioning(client: TestClient):
         "workflow_id": "test_version_workflow",
         "name": "Test Versioning",
         "description": "Initial design",
-        "definition": {"steps": []}
+        "definition": {"steps": []},
     }
     res_v1 = client.post("/api/v1/workflows", json=payload)
     assert res_v1.status_code == 200
@@ -72,7 +73,12 @@ def test_workflow_versioning(client: TestClient):
     # 3. Check DB mapping
     db = SessionLocal()
     try:
-        wfs = db.query(Workflow).filter(Workflow.workflow_id == "test_version_workflow").order_by(Workflow.version.asc()).all()
+        wfs = (
+            db.query(Workflow)
+            .filter(Workflow.workflow_id == "test_version_workflow")
+            .order_by(Workflow.version.asc())
+            .all()
+        )
         assert len(wfs) == 2
         assert wfs[0].version == 1
         assert wfs[0].is_active is False
@@ -90,27 +96,35 @@ def test_agent_capability_matching_and_execution(client: TestClient):
     db = SessionLocal()
     try:
         workflow_service.seed_default_templates(db)
-        coding_template = db.query(Workflow).filter(Workflow.workflow_id == "coding_workflow").first()
+        coding_template = (
+            db.query(Workflow).filter(Workflow.workflow_id == "coding_workflow").first()
+        )
         assert coding_template is not None
-        
+
         # Trigger run
         exec_res = client.post(f"/api/v1/workflows/{coding_template.id}/execute")
         assert exec_res.status_code == 200
         exec_data = exec_res.json()["data"]
-        
+
         # Wait for background threads to complete
         import time
+
         time.sleep(1.0)
-        
+
         # Verify status progress
         status_res = client.get(f"/api/v1/workflows/{exec_data['id']}/status")
         assert status_res.json()["data"]["status"] == "completed"
 
         # Check task output references the coding agent
-        tasks = db.query(Task).filter(Task.workflow_execution_id == exec_data['id']).all()
+        tasks = (
+            db.query(Task).filter(Task.workflow_execution_id == exec_data["id"]).all()
+        )
         assert len(tasks) == 2
         assert "coding_agent" in tasks[0].output_data
-        assert "analysis_agent" in tasks[1].output_data or "coding_agent" in tasks[1].output_data # coding agent registers both coding/analysis
+        assert (
+            "analysis_agent" in tasks[1].output_data
+            or "coding_agent" in tasks[1].output_data
+        )  # coding agent registers both coding/analysis
     finally:
         db.close()
 
@@ -125,9 +139,13 @@ def test_dead_letter_queue_on_failure(client: TestClient):
         "name": "Unsupported Workflow",
         "definition": {
             "steps": [
-                {"name": "fail_step", "required_capability": "unsupported_capability", "max_retries": 1}
+                {
+                    "name": "fail_step",
+                    "required_capability": "unsupported_capability",
+                    "max_retries": 1,
+                }
             ]
-        }
+        },
     }
     res = client.post("/api/v1/workflows", json=payload)
     wf_id = res.json()["data"]["id"]
@@ -138,6 +156,7 @@ def test_dead_letter_queue_on_failure(client: TestClient):
 
     # Wait for completion
     import time
+
     time.sleep(1.0)
 
     # 1. Status should fail
@@ -154,18 +173,24 @@ def test_dead_letter_queue_on_failure(client: TestClient):
 
 def test_human_approval_pause_and_resume(client: TestClient):
     """
-    Checks that human-in-the-loop task step suspends execution, which can be approved/resumed.
+    Checks that human-in-the-loop task step suspends
+    execution, which can be approved/resumed.
     """
     db = SessionLocal()
     try:
         workflow_service.seed_default_templates(db)
-        review_wf = db.query(Workflow).filter(Workflow.workflow_id == "multi_agent_review_workflow").first()
-        
+        review_wf = (
+            db.query(Workflow)
+            .filter(Workflow.workflow_id == "multi_agent_review_workflow")
+            .first()
+        )
+
         # Execute
         exec_res = client.post(f"/api/v1/workflows/{review_wf.id}/execute")
         exec_id = exec_res.json()["data"]["id"]
 
         import time
+
         time.sleep(1.0)
 
         # 1. Execution status must pause in 'waiting' state
@@ -173,17 +198,20 @@ def test_human_approval_pause_and_resume(client: TestClient):
         assert status_res.json()["data"]["status"] == "waiting"
 
         # Resolve suspended task
-        task = db.query(Task).filter(
-            Task.workflow_execution_id == exec_id,
-            Task.status == "waiting"
-        ).first()
+        task = (
+            db.query(Task)
+            .filter(Task.workflow_execution_id == exec_id, Task.status == "waiting")
+            .first()
+        )
         assert task is not None
         assert task.name == "human_approval_step"
 
         # 2. Resume execution by approving task
-        resume_res = client.post(f"/api/v1/workflows/{exec_id}/resume?task_id={task.id}")
+        resume_res = client.post(
+            f"/api/v1/workflows/{exec_id}/resume?task_id={task.id}"
+        )
         assert resume_res.status_code == 200
-        
+
         time.sleep(1.0)
 
         # 3. Execution status finishes successfully

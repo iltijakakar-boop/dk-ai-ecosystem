@@ -2,7 +2,7 @@ from typing import Dict, Type
 
 from .base_provider import BaseProvider
 from .mock_provider import MockProvider
-from ..config import settings  # Adjust import path as needed
+from backend.app.config.settings import settings
 
 
 class ProviderRegistry:
@@ -29,6 +29,7 @@ class ProviderRegistry:
     def default(cls) -> BaseProvider:
         default_name = getattr(settings, "DEFAULT_PROVIDER", "mock")
         return cls.get(default_name)
+
 
 # Register built‑in providers
 ProviderRegistry.register("mock", MockProvider)

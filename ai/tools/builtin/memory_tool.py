@@ -1,10 +1,12 @@
 from typing import Any, Dict, List
 from ai.tools.base_tool import BaseTool
 
+
 class MemoryTool(BaseTool):
     """
     Built-in memory utility tool for saving, retrieving, and deleting state keys.
     """
+
     # Class-level in-memory key-value store
     _memory_store: Dict[str, Dict[str, Any]] = {}
 
@@ -48,22 +50,19 @@ class MemoryTool(BaseTool):
                 "action": {
                     "type": "string",
                     "enum": ["save", "retrieve", "delete"],
-                    "description": "The memory operation to execute."
+                    "description": "The memory operation to execute.",
                 },
                 "session_id": {
                     "type": "string",
-                    "description": "The unique session identifier."
+                    "description": "The unique session identifier.",
                 },
-                "key": {
-                    "type": "string",
-                    "description": "The variable key."
-                },
+                "key": {"type": "string", "description": "The variable key."},
                 "value": {
                     "type": "string",
-                    "description": "The variable value (required only for 'save' action)."
-                }
+                    "description": "The variable value (required only for 'save' action).",
+                },
             },
-            "required": ["action", "session_id", "key"]
+            "required": ["action", "session_id", "key"],
         }
 
     def execute(self, **kwargs) -> Dict[str, Any]:
@@ -77,11 +76,14 @@ class MemoryTool(BaseTool):
 
         if action == "save":
             if value is None:
-                return {"success": False, "error": "Value parameter is required for 'save' action."}
+                return {
+                    "success": False,
+                    "error": "Value parameter is required for 'save' action.",
+                }
             self._memory_store[session_id][key] = value
             return {
                 "success": True,
-                "message": f"Saved key '{key}' for session '{session_id}'."
+                "message": f"Saved key '{key}' for session '{session_id}'.",
             }
 
         elif action == "retrieve":
@@ -89,25 +91,21 @@ class MemoryTool(BaseTool):
             if val is None:
                 return {
                     "success": False,
-                    "error": f"Key '{key}' not found in session '{session_id}'."
+                    "error": f"Key '{key}' not found in session '{session_id}'.",
                 }
-            return {
-                "success": True,
-                "key": key,
-                "value": val
-            }
+            return {"success": True, "key": key, "value": val}
 
         elif action == "delete":
             if key in self._memory_store[session_id]:
                 del self._memory_store[session_id][key]
                 return {
                     "success": True,
-                    "message": f"Deleted key '{key}' from session '{session_id}'."
+                    "message": f"Deleted key '{key}' from session '{session_id}'.",
                 }
             else:
                 return {
                     "success": False,
-                    "error": f"Key '{key}' not found in session '{session_id}'."
+                    "error": f"Key '{key}' not found in session '{session_id}'.",
                 }
         else:
             return {"success": False, "error": f"Invalid action: {action}"}

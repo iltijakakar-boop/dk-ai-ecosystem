@@ -1,5 +1,5 @@
 # Import all the models so that Base has them registered before migrating
-from app.db.session import Base
+from app.db.session import Base  # noqa
 from app.models.user import User, UserRole  # noqa
 from app.models.audit_log import AuditLog  # noqa
 from app.models.agent import AgentRegistry  # noqa
@@ -12,10 +12,3 @@ from app.models.conversation import Conversation  # noqa
 from app.models.message import Message  # noqa
 from app.models.memory_entry import MemoryEntry  # noqa
 from app.models.knowledge_collection import KnowledgeCollection  # noqa
-from app.models.workflow_model import Workflow, WorkflowExecution, Task, TaskExecution, AgentAssignment, WorkflowLog, DeadLetterQueue  # noqa
-from app.models.gateway_model import ProviderUsage, ProviderHealth, ModelRegistry  # noqa
-
-
-
-
-

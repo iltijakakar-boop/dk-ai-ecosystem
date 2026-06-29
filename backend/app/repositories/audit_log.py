@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
-from app.repositories.base import CRUDBase
+
 from app.models.audit_log import AuditLog
+from app.repositories.base import CRUDBase
+
 
 class AuditLogRepository(CRUDBase[AuditLog]):
     def create_log(
@@ -22,11 +24,12 @@ class AuditLogRepository(CRUDBase[AuditLog]):
             action=action,
             ip_address=ip_address,
             user_agent=user_agent,
-            details=details
+            details=details,
         )
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
         return db_obj
+
 
 audit_log_repository = AuditLogRepository(AuditLog)

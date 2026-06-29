@@ -1,10 +1,12 @@
 from ai.tools.base_tool import BaseTool
 from typing import Any, Dict
 
+
 class DocumentParserTool(BaseTool):
     """
     Parses document raw text content.
     """
+
     @property
     def tool_id(self) -> str:
         return "document_parser"
@@ -28,23 +30,23 @@ class DocumentParserTool(BaseTool):
             "properties": {
                 "text": {
                     "type": "string",
-                    "description": "Raw string text extracted from pdf/word document."
+                    "description": "Raw string text extracted from pdf/word document.",
                 }
             },
-            "required": ["text"]
+            "required": ["text"],
         }
 
     def execute(self, **kwargs) -> Dict[str, Any]:
         text = kwargs.get("text", "")
         if not text:
             return {"valid": False, "error": "No text content provided."}
-            
+
         word_count = len(text.split())
         summary = text[:100] + "..." if len(text) > 100 else text
-        
+
         return {
             "success": True,
             "character_count": len(text),
             "word_count": word_count,
-            "preview_summary": summary
+            "preview_summary": summary,
         }

@@ -1,20 +1,22 @@
 import os
-from fastapi import APIRouter, HTTPException, Depends, Request
-from typing import Dict, Any, List
-from sqlalchemy.orm import Session
+from typing import Any, Dict
+
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy import text
-from app.schemas.response import APIResponse
-from app.dependencies.db import get_db
-from app.config.settings import settings
+from sqlalchemy.orm import Session
+
 from app.core.logging.logger import logger
-from app.monitoring.metrics import metrics_registry
-from app.monitoring.system import get_system_metrics
+from app.dependencies.db import get_db
 from app.monitoring.agent_metrics import get_agent_metrics
-from app.monitoring.tool_metrics import get_tool_metrics
-from app.monitoring.plugin_metrics import get_plugin_metrics
 from app.monitoring.cleanup import cleanup_expired_metrics_and_logs
+from app.monitoring.metrics import metrics_registry
+from app.monitoring.plugin_metrics import get_plugin_metrics
+from app.monitoring.system import get_system_metrics
+from app.monitoring.tool_metrics import get_tool_metrics
+from app.schemas.response import APIResponse
 
 router = APIRouter(prefix="/monitoring", tags=["monitoring"])
+
 
 @router.get("/health", response_model=APIResponse[Dict[str, Any]])
 async def health_check(request: Request, db: Session = Depends(get_db)):
@@ -34,23 +36,26 @@ async def health_check(request: Request, db: Session = Depends(get_db)):
         try:
             # redis client might be async, handle ping
             import inspect
+
             res = redis_client.ping()
             if inspect.isawaitable(res):
                 await res
             redis_ok = True
         except Exception as e:
             logger.error(f"Health check: Redis failure: {e}")
-            
+
     is_healthy = db_ok
-    status = "healthy" if (db_ok and redis_ok) else ("degraded" if db_ok else "unhealthy")
+    status = (
+        "healthy" if (db_ok and redis_ok) else ("degraded" if db_ok else "unhealthy")
+    )
     return APIResponse(
         success=is_healthy,
         data={
             "database": "healthy" if db_ok else "unhealthy",
             "redis": "healthy" if redis_ok else "unhealthy",
-            "status": status
+            "status": status,
         },
-        message="System health status retrieved successfully."
+        message="System health status retrieved successfully.",
     )
 
 
@@ -63,7 +68,9 @@ def get_system_telemetry():
         sys_data = get_system_metrics()
         return APIResponse(success=True, data=sys_data)
     except Exception as e:
-        return APIResponse(success=False, error=str(e), message="Failed to retrieve system metrics.")
+        return APIResponse(
+            success=False, error=str(e), message="Failed to retrieve system metrics."
+        )
 
 
 @router.get("/metrics", response_model=APIResponse[Dict[str, Any]])
@@ -77,7 +84,7 @@ def get_api_metrics():
         "auth_failures": metrics_registry.auth_failures,
         "database_queries": metrics_registry.db_queries,
         "redis_operations": metrics_registry.redis_operations,
-        "average_response_time_ms": metrics_registry.get_average_response_time()
+        "average_response_time_ms": metrics_registry.get_average_response_time(),
     }
     return APIResponse(success=True, data=data)
 
@@ -119,7 +126,7 @@ def tail_application_logs():
         return APIResponse(
             success=False,
             error="Log file not found.",
-            message="Ensure ENABLE_FILE_LOGGING is enabled in settings to write to disk."
+            message="Ensure ENABLE_FILE_LOGGING is enabled in settings to write to disk.",
         )
 
     try:
@@ -130,10 +137,12 @@ def tail_application_logs():
         return APIResponse(
             success=True,
             data={"lines": [line.strip() for line in tail_lines]},
-            message=f"Retrieved last {len(tail_lines)} lines of application logs."
+            message=f"Retrieved last {len(tail_lines)} lines of application logs.",
         )
     except Exception as e:
-        return APIResponse(success=False, error=str(e), message="Failed to read application log files.")
+        return APIResponse(
+            success=False, error=str(e), message="Failed to read application log files."
+        )
 
 
 @router.post("/cleanup", response_model=APIResponse[Dict[str, Any]])
@@ -143,5 +152,9 @@ def trigger_retention_cleanup():
     """
     res = cleanup_expired_metrics_and_logs()
     if not res["success"]:
-        return APIResponse(success=False, error=res.get("error"), message="Retention cleanup failed.")
-    return APIResponse(success=True, data=res, message="Retention cleanup executed successfully.")
+        return APIResponse(
+            success=False, error=res.get("error"), message="Retention cleanup failed."
+        )
+    return APIResponse(
+        success=True, data=res, message="Retention cleanup executed successfully."
+    )

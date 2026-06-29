@@ -1,29 +1,33 @@
 import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+
 import redis.asyncio as aioredis
-from app.core.logging import setup_logging, logger
+from fastapi import FastAPI
+
 from app.config.settings import settings
+from app.core.logging import logger, setup_logging
 from app.db.session import engine
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Setup Logging based on environment
     setup_logging(settings.ENVIRONMENT)
     logger.info("Initializing DK AI Ecosystem backend services...")
-    
+
     # Record startup time
     app.state.start_time = time.time()
 
     # Database engine verification and initialization
     try:
-        with engine.connect() as conn:
+        with engine.connect():
             logger.info("Successfully connected to the Database.")
             app.state.db_connected = True
-        
+
         # Run DB initialization and seed superuser
-        from app.db.session import SessionLocal
         from app.db.init_db import init_db
+        from app.db.session import SessionLocal
+
         db = SessionLocal()
         try:
             init_db(db)
@@ -37,10 +41,10 @@ async def lifespan(app: FastAPI):
     # Redis connection pool initialization
     try:
         app.state.redis_client = aioredis.from_url(
-            settings.REDIS_URL, 
+            settings.REDIS_URL,
             decode_responses=True,
             socket_connect_timeout=2.0,
-            socket_timeout=2.0
+            socket_timeout=2.0,
         )
         await app.state.redis_client.ping()
         logger.info("Successfully connected to Redis.")
@@ -51,8 +55,11 @@ async def lifespan(app: FastAPI):
     # Discover and load cognitive AI agents
     try:
         from ai.core.agent_manager import agent_manager
+
         agent_manager.discover_agents()
-        logger.info(f"Successfully loaded agents on startup: {[a['id'] for a in agent_manager.list_agents()]}")
+        logger.info(
+            f"Successfully loaded agents on startup: {[a['id'] for a in agent_manager.list_agents()]}"
+        )
     except Exception as e:
         logger.error(f"Failed to discover and register agents on startup: {e}")
 
@@ -60,13 +67,14 @@ async def lifespan(app: FastAPI):
     try:
         from ai.tools.tool_registry import tool_registry
         from plugins.runtime.plugin_loader import plugin_loader
+
         tool_registry.discover_builtin_tools()
         plugin_loader.discover_and_load_plugins()
-        logger.info(f"Successfully loaded tools on startup: {[t['tool_id'] for t in tool_registry.list_tools()]}")
+        logger.info(
+            f"Successfully loaded tools on startup: {[t['tool_id'] for t in tool_registry.list_tools()]}"
+        )
     except Exception as e:
         logger.error(f"Failed to discover and register tools on startup: {e}")
-
-
 
     yield
 
@@ -75,6 +83,6 @@ async def lifespan(app: FastAPI):
     if hasattr(app.state, "redis_client") and app.state.redis_client:
         await app.state.redis_client.aclose()
         logger.info("Redis connection closed.")
-    
+
     engine.dispose()
     logger.info("Database engine connections disposed.")

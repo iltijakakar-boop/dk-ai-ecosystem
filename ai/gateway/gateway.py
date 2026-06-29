@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
 
 from .router import Router
+from .provider_registry import ProviderRegistry
 
 
 class ModelGateway:

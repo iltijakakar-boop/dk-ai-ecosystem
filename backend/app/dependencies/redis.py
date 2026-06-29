@@ -1,6 +1,8 @@
-from fastapi import Request
-import redis.asyncio as aioredis
 from typing import Optional
+
+import redis.asyncio as aioredis
+from fastapi import Request
+
 
 async def get_redis(request: Request) -> Optional[aioredis.Redis]:
     """

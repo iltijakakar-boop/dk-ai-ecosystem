@@ -2,11 +2,13 @@ from typing import Dict, Any, List
 from app.services.search_service import search_service
 from app.core.logging.logger import logger
 
+
 class SharedContextMemory:
     """
     Implements shared variables, shared reference file registries,
     and semantic vector checks scoped to a workflow execution run.
     """
+
     def __init__(self, execution_id: int):
         self.execution_id = execution_id
 
@@ -15,6 +17,7 @@ class SharedContextMemory:
         Saves key-value data inside the shared context memory.
         """
         from ai.orchestrator.state_manager import StateManager
+
         StateManager.update_execution_context(self.execution_id, key, value)
 
     def get_variable(self, key: str, default: Any = None) -> Any:
@@ -22,6 +25,7 @@ class SharedContextMemory:
         Retrieves key-value data from the shared context memory.
         """
         from ai.orchestrator.state_manager import StateManager
+
         ctx = StateManager.get_execution_context(self.execution_id)
         return ctx.get(key, default)
 
@@ -33,7 +37,9 @@ class SharedContextMemory:
         if filename not in docs:
             docs.append(filename)
             self.set_variable("shared_documents", docs)
-            logger.info(f"[SharedMemory] Document '{filename}' shared in execution {self.execution_id}")
+            logger.info(
+                f"[SharedMemory] Document '{filename}' shared in execution {self.execution_id}"
+            )
 
     def get_shared_documents(self) -> List[str]:
         """
@@ -53,9 +59,7 @@ class SharedContextMemory:
         for doc in docs:
             # Query similarity searches for specific document filename
             matches = search_service.search_similarity(
-                query_text=query, 
-                top_k=top_k, 
-                filters={"filename": doc}
+                query_text=query, top_k=top_k, filters={"filename": doc}
             )
             results.extend(matches)
 

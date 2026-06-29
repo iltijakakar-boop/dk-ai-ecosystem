@@ -1,27 +1,45 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
-from app.schemas.response import APIResponse
-from ai.tools.tool_registry import tool_registry
+from typing import Any, Dict, List, Optional
+
 from ai.tools.tool_executor import tool_executor
-from plugins.runtime.plugin_manager import plugin_manager
+from ai.tools.tool_registry import tool_registry
+from fastapi import APIRouter, HTTPException
 from plugins.runtime.plugin_loader import plugin_loader
+from plugins.runtime.plugin_manager import plugin_manager
+from pydantic import BaseModel, Field
+
+from app.schemas.response import APIResponse
 
 router = APIRouter()
 
+
 # Request schemas
 class ToolExecuteRequest(BaseModel):
-    arguments: Dict[str, Any] = Field(default_factory=dict, description="Key-value arguments for tool execution.")
-    session_id: Optional[str] = Field(None, description="Optional session/conversation ID.")
-    agent_id: Optional[str] = Field(None, description="Optional agent calling the tool.")
-    user_id: Optional[int] = Field(None, description="Optional user ID running the execution.")
-    permissions: Optional[List[str]] = Field(None, description="Optional list of granted permissions for the execution context.")
+    arguments: Dict[str, Any] = Field(
+        default_factory=dict, description="Key-value arguments for tool execution."
+    )
+    session_id: Optional[str] = Field(
+        None, description="Optional session/conversation ID."
+    )
+    agent_id: Optional[str] = Field(
+        None, description="Optional agent calling the tool."
+    )
+    user_id: Optional[int] = Field(
+        None, description="Optional user ID running the execution."
+    )
+    permissions: Optional[List[str]] = Field(
+        None,
+        description="Optional list of granted permissions for the execution context.",
+    )
 
 
 class PluginInstallRequest(BaseModel):
     plugin_id: str = Field(..., description="Unique folder/name ID for the plugin.")
-    manifest: Dict[str, Any] = Field(..., description="Details corresponding to plugin.json specifications.")
-    tools_code: str = Field(..., description="Python source code containing tool classes for tools.py.")
+    manifest: Dict[str, Any] = Field(
+        ..., description="Details corresponding to plugin.json specifications."
+    )
+    tools_code: str = Field(
+        ..., description="Python source code containing tool classes for tools.py."
+    )
 
 
 class PluginToggleRequest(BaseModel):
@@ -50,11 +68,13 @@ def get_tool_metadata(tool_id: str):
     """
     tool_registry.discover_builtin_tools()
     plugin_loader.discover_and_load_plugins()
-    
+
     tool = tool_registry.get_tool(tool_id)
     if not tool:
-        raise HTTPException(status_code=404, detail=f"Tool '{tool_id}' not found or is disabled.")
-        
+        raise HTTPException(
+            status_code=404, detail=f"Tool '{tool_id}' not found or is disabled."
+        )
+
     return APIResponse(
         success=True,
         data={
@@ -69,8 +89,8 @@ def get_tool_metadata(tool_id: str):
             "tags": tool.tags,
             "permissions": tool.permissions,
             "timeout": tool.timeout,
-            "parameters": tool.parameters
-        }
+            "parameters": tool.parameters,
+        },
     )
 
 
@@ -86,26 +106,24 @@ def execute_tool_call(tool_id: str, payload: ToolExecuteRequest):
         "session_id": payload.session_id,
         "agent_id": payload.agent_id,
         "user_id": payload.user_id,
-        "permissions": payload.permissions or []
+        "permissions": payload.permissions or [],
     }
-    
+
     res = tool_executor.execute_tool(
-        tool_id=tool_id,
-        arguments=payload.arguments,
-        context=context
+        tool_id=tool_id, arguments=payload.arguments, context=context
     )
-    
+
     if not res["success"]:
         return APIResponse(
             success=False,
             error=res.get("error", "Execution failure."),
-            message="Tool execution failed."
+            message="Tool execution failed.",
         )
-        
+
     return APIResponse(
         success=True,
         data={"result": res["result"]},
-        message="Tool execution finished successfully."
+        message="Tool execution finished successfully.",
     )
 
 
@@ -119,7 +137,9 @@ def list_plugins():
         plugins = plugin_manager.list_plugins()
         return APIResponse(success=True, data=plugins)
     except Exception as e:
-        return APIResponse(success=False, error=str(e), message="Failed to list plugins.")
+        return APIResponse(
+            success=False, error=str(e), message="Failed to list plugins."
+        )
 
 
 @router.post("/plugins/install", response_model=APIResponse[Dict[str, Any]])
@@ -130,11 +150,15 @@ def install_new_plugin(payload: PluginInstallRequest):
     success = plugin_manager.install_plugin(
         plugin_id=payload.plugin_id,
         manifest=payload.manifest,
-        tools_py_content=payload.tools_code
+        tools_py_content=payload.tools_code,
     )
     if not success:
-        return APIResponse(success=False, error="Failed to write plugin files or database entries.")
-    return APIResponse(success=True, message=f"Plugin '{payload.plugin_id}' installed successfully.")
+        return APIResponse(
+            success=False, error="Failed to write plugin files or database entries."
+        )
+    return APIResponse(
+        success=True, message=f"Plugin '{payload.plugin_id}' installed successfully."
+    )
 
 
 @router.post("/plugins/enable", response_model=APIResponse[Dict[str, Any]])
@@ -144,7 +168,9 @@ def enable_plugin_runtime(payload: PluginToggleRequest):
     """
     success = plugin_manager.set_plugin_status(payload.plugin_id, enabled=True)
     if not success:
-        return APIResponse(success=False, error=f"Could not enable plugin '{payload.plugin_id}'.")
+        return APIResponse(
+            success=False, error=f"Could not enable plugin '{payload.plugin_id}'."
+        )
     return APIResponse(success=True, message=f"Plugin '{payload.plugin_id}' enabled.")
 
 
@@ -155,7 +181,9 @@ def disable_plugin_runtime(payload: PluginToggleRequest):
     """
     success = plugin_manager.set_plugin_status(payload.plugin_id, enabled=False)
     if not success:
-        return APIResponse(success=False, error=f"Could not disable plugin '{payload.plugin_id}'.")
+        return APIResponse(
+            success=False, error=f"Could not disable plugin '{payload.plugin_id}'."
+        )
     return APIResponse(success=True, message=f"Plugin '{payload.plugin_id}' disabled.")
 
 
@@ -166,5 +194,7 @@ def uninstall_plugin_runtime(plugin_id: str):
     """
     success = plugin_manager.uninstall_plugin(plugin_id)
     if not success:
-        raise HTTPException(status_code=400, detail=f"Failed to uninstall plugin '{plugin_id}'.")
+        raise HTTPException(
+            status_code=400, detail=f"Failed to uninstall plugin '{plugin_id}'."
+        )
     return APIResponse(success=True, message=f"Plugin '{plugin_id}' uninstalled.")

@@ -1,16 +1,18 @@
 import abc
-import os
 import json
-import time
+import os
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
+
 from sqlalchemy.orm import Session
+
 from app.config.settings import settings
-from app.db.session import SessionLocal
-from app.models.memory_entry import MemoryEntry
-from app.models.conversation import Conversation
-from app.models.message import Message
 from app.core.logging.logger import logger
+from app.db.session import SessionLocal
+from app.models.conversation import Conversation
+from app.models.memory_entry import MemoryEntry
+from app.models.message import Message
+
 
 class BaseMemoryStore(abc.ABC):
     @abc.abstractmethod
@@ -18,7 +20,13 @@ class BaseMemoryStore(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def set(self, key: str, value: Any, memory_type: str = "long_term", expires_in_seconds: Optional[int] = None) -> None:
+    def set(
+        self,
+        key: str,
+        value: Any,
+        memory_type: str = "long_term",
+        expires_in_seconds: Optional[int] = None,
+    ) -> None:
         pass
 
     @abc.abstractmethod
@@ -34,18 +42,23 @@ class SQLiteMemoryStore(BaseMemoryStore):
     """
     Database-backed memory entry store.
     """
+
     def get(self, key: str, memory_type: str = "long_term") -> Optional[Any]:
         db = SessionLocal()
         try:
             now = datetime.now(timezone.utc)
-            entry = db.query(MemoryEntry).filter(
-                MemoryEntry.key == key,
-                MemoryEntry.memory_type == memory_type
-            ).first()
-            
+            entry = (
+                db.query(MemoryEntry)
+                .filter(MemoryEntry.key == key, MemoryEntry.memory_type == memory_type)
+                .first()
+            )
+
             if entry:
                 # Check expiration
-                if entry.expires_at and entry.expires_at.replace(tzinfo=timezone.utc) < now:
+                if (
+                    entry.expires_at
+                    and entry.expires_at.replace(tzinfo=timezone.utc) < now
+                ):
                     db.delete(entry)
                     db.commit()
                     return None
@@ -54,18 +67,27 @@ class SQLiteMemoryStore(BaseMemoryStore):
         finally:
             db.close()
 
-    def set(self, key: str, value: Any, memory_type: str = "long_term", expires_in_seconds: Optional[int] = None) -> None:
+    def set(
+        self,
+        key: str,
+        value: Any,
+        memory_type: str = "long_term",
+        expires_in_seconds: Optional[int] = None,
+    ) -> None:
         db = SessionLocal()
         try:
             expires_at = None
             if expires_in_seconds:
-                expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
+                expires_at = datetime.now(timezone.utc) + timedelta(
+                    seconds=expires_in_seconds
+                )
 
             # Check if exists
-            entry = db.query(MemoryEntry).filter(
-                MemoryEntry.key == key,
-                MemoryEntry.memory_type == memory_type
-            ).first()
+            entry = (
+                db.query(MemoryEntry)
+                .filter(MemoryEntry.key == key, MemoryEntry.memory_type == memory_type)
+                .first()
+            )
 
             serialized_val = json.dumps(value)
             if entry:
@@ -77,7 +99,7 @@ class SQLiteMemoryStore(BaseMemoryStore):
                     key=key,
                     value=serialized_val,
                     memory_type=memory_type,
-                    expires_at=expires_at
+                    expires_at=expires_at,
                 )
                 db.add(entry)
             db.commit()
@@ -88,8 +110,7 @@ class SQLiteMemoryStore(BaseMemoryStore):
         db = SessionLocal()
         try:
             db.query(MemoryEntry).filter(
-                MemoryEntry.key == key,
-                MemoryEntry.memory_type == memory_type
+                MemoryEntry.key == key, MemoryEntry.memory_type == memory_type
             ).delete()
             db.commit()
         finally:
@@ -98,7 +119,9 @@ class SQLiteMemoryStore(BaseMemoryStore):
     def clear(self, memory_type: str = "long_term") -> None:
         db = SessionLocal()
         try:
-            db.query(MemoryEntry).filter(MemoryEntry.memory_type == memory_type).delete()
+            db.query(MemoryEntry).filter(
+                MemoryEntry.memory_type == memory_type
+            ).delete()
             db.commit()
         finally:
             db.close()
@@ -108,16 +131,22 @@ class RedisMemoryStore(BaseMemoryStore):
     """
     Redis-backed memory store. Falls back to SQLite if Redis is unavailable.
     """
+
     def __init__(self):
         self.sqlite_fallback = SQLiteMemoryStore()
         try:
             import redis
+
             # Simple connection check
-            self.client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+            self.client = redis.Redis(
+                host="localhost", port=6379, db=0, decode_responses=True
+            )
             self.client.ping()
             self.active = True
         except Exception:
-            logger.warning("Redis is not available. RedisMemoryStore falling back to SQLite.")
+            logger.warning(
+                "Redis is not available. RedisMemoryStore falling back to SQLite."
+            )
             self.active = False
 
     def get(self, key: str, memory_type: str = "long_term") -> Optional[Any]:
@@ -127,7 +156,13 @@ class RedisMemoryStore(BaseMemoryStore):
         val = self.client.get(rkey)
         return json.loads(val) if val else None
 
-    def set(self, key: str, value: Any, memory_type: str = "long_term", expires_in_seconds: Optional[int] = None) -> None:
+    def set(
+        self,
+        key: str,
+        value: Any,
+        memory_type: str = "long_term",
+        expires_in_seconds: Optional[int] = None,
+    ) -> None:
         if not self.active:
             return self.sqlite_fallback.set(key, value, memory_type, expires_in_seconds)
         rkey = f"mem:{memory_type}:{key}"
@@ -155,6 +190,7 @@ class FileMemoryStore(BaseMemoryStore):
     """
     File-backed memory store saving entries in JSON format.
     """
+
     def __init__(self, file_path: str = "database/long_term_memory.json"):
         self.file_path = file_path
         os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
@@ -183,7 +219,9 @@ class FileMemoryStore(BaseMemoryStore):
             # Check expiry
             expires_at_str = entry.get("expires_at")
             if expires_at_str:
-                expires_at = datetime.fromisoformat(expires_at_str).replace(tzinfo=timezone.utc)
+                expires_at = datetime.fromisoformat(expires_at_str).replace(
+                    tzinfo=timezone.utc
+                )
                 if datetime.now(timezone.utc) > expires_at:
                     # Remove expired entry
                     del data[composite_key]
@@ -192,17 +230,25 @@ class FileMemoryStore(BaseMemoryStore):
             return entry.get("value")
         return None
 
-    def set(self, key: str, value: Any, memory_type: str = "long_term", expires_in_seconds: Optional[int] = None) -> None:
+    def set(
+        self,
+        key: str,
+        value: Any,
+        memory_type: str = "long_term",
+        expires_in_seconds: Optional[int] = None,
+    ) -> None:
         data = self._read_file()
         composite_key = f"{memory_type}:{key}"
         expires_at = None
         if expires_in_seconds:
-            expires_at = (datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)).isoformat()
-        
+            expires_at = (
+                datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
+            ).isoformat()
+
         data[composite_key] = {
             "value": value,
             "expires_at": expires_at,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
         self._write_file(data)
 
@@ -215,7 +261,9 @@ class FileMemoryStore(BaseMemoryStore):
 
     def clear(self, memory_type: str = "long_term") -> None:
         data = self._read_file()
-        filtered = {k: v for k, v in data.items() if not k.startswith(f"{memory_type}:")}
+        filtered = {
+            k: v for k, v in data.items() if not k.startswith(f"{memory_type}:")
+        }
         self._write_file(filtered)
 
 
@@ -228,18 +276,26 @@ class MemoryService:
             return FileMemoryStore()
         return SQLiteMemoryStore()
 
-    def compress_conversation_if_needed(self, db: Session, conversation_id: int) -> bool:
+    def compress_conversation_if_needed(
+        self, db: Session, conversation_id: int
+    ) -> bool:
         """
         Memory Compression & Summarization:
-        Checks messages count or token count thresholds. Compresses older conversation logs
-        into the Conversation.summary field and deletes details of older rounds.
+        Checks messages count or token count thresholds. Compresses older
+        conversation logs into the Conversation.summary field and deletes
+        details of older rounds.
         """
         conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
         if not conv:
             return False
 
         # Load message list ordered by timestamp
-        messages = db.query(Message).filter(Message.conversation_id == conversation_id).order_by(Message.timestamp.asc()).all()
+        messages = (
+            db.query(Message)
+            .filter(Message.conversation_id == conversation_id)
+            .order_by(Message.timestamp.asc())
+            .all()
+        )
         total_messages = len(messages)
         total_tokens = sum(m.token_count for m in messages)
 
@@ -249,9 +305,13 @@ class MemoryService:
         if total_messages <= trigger_msg and total_tokens <= trigger_tokens:
             return False
 
-        logger.info(f"Summarizing conversation thread {conversation_id} (rounds: {total_messages}, tokens: {total_tokens})")
+        logger.info(
+            f"Summarizing conversation thread {conversation_id} "
+            f"(rounds: {total_messages}, tokens: {total_tokens})"
+        )
 
-        # Keep the last 2 messages (1 user round and 1 assistant round) to preserve immediate conversation flow
+        # Keep the last 2 messages (1 user round and 1 assistant round)
+        # to preserve immediate conversation flow
         msgs_to_summarize = messages[:-2] if total_messages > 2 else messages
         if not msgs_to_summarize:
             return False
@@ -260,7 +320,7 @@ class MemoryService:
         summary_text_input = []
         for m in msgs_to_summarize:
             summary_text_input.append(f"{m.role.capitalize()}: {m.content}")
-        
+
         input_history = "\n".join(summary_text_input)
 
         # Generate a structured summary
@@ -268,16 +328,23 @@ class MemoryService:
 
         # Update Conversation Summary
         if conv.summary:
-            conv.summary = f"{conv.summary}\n\n[Previous Summary Update]: {summary_result}"
+            conv.summary = (
+                f"{conv.summary}\n\n[Previous Summary Update]: {summary_result}"
+            )
         else:
             conv.summary = f"[Conversation Summary]: {summary_result}"
 
         # Delete summarized messages from database
         summarized_ids = [m.id for m in msgs_to_summarize]
-        db.query(Message).filter(Message.id.in_(summarized_ids)).delete(synchronize_session=False)
+        db.query(Message).filter(Message.id.in_(summarized_ids)).delete(
+            synchronize_session=False
+        )
         db.commit()
 
-        logger.info(f"Conversation {conversation_id} compressed successfully. Deleted {len(summarized_ids)} messages.")
+        logger.info(
+            f"Conversation {conversation_id} compressed successfully. "
+            f"Deleted {len(summarized_ids)} messages."
+        )
         return True
 
     def _generate_mock_summary(self, text: str) -> str:
@@ -287,11 +354,23 @@ class MemoryService:
         lines = text.split("\n")
         facts = []
         for line in lines:
-            if "key" in line.lower() or "target" in line.lower() or "goals" in line.lower() or "RAG" in line or "vector" in line:
+            if (
+                "key" in line.lower()
+                or "target" in line.lower()
+                or "goals" in line.lower()
+                or "RAG" in line
+                or "vector" in line
+            ):
                 facts.append(line.strip())
-        
-        extracted_facts = "; ".join(facts[:4]) if facts else "General topic discussions."
-        return f"Compressed context: User and Assistant discussed development targets. Key elements: {extracted_facts}"
+
+        extracted_facts = (
+            "; ".join(facts[:4]) if facts else "General topic discussions."
+        )
+        return (
+            "Compressed context: User and Assistant discussed development targets. "
+            f"Key elements: {extracted_facts}"
+        )
+
 
 # Global MemoryService instance
 memory_service = MemoryService()

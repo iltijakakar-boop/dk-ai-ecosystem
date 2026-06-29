@@ -1,22 +1,26 @@
 import time
-import httpx
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, Tuple
-from app.db.session import SessionLocal
-from app.models.monitoring_model import ExecutionMetric
-from app.services.retrieval_service import retrieval_service
-from app.services.reranker import reranker_service
-from app.services.context_builder import context_builder
-from app.services.conversation_service import conversation_service
+from typing import Any, Dict, List, Optional
+
+import httpx
+
 from app.config.settings import settings
 from app.core.logging.logger import logger
+from app.db.session import SessionLocal
+from app.models.monitoring_model import ExecutionMetric
+from app.services.context_builder import context_builder
+from app.services.conversation_service import conversation_service
+from app.services.reranker import reranker_service
+from app.services.retrieval_service import retrieval_service
+
 
 class RAGEngine:
     """
     Orchestrates the entire RAG cycle: retrieves contexts, reranks blocks,
-    assembles token contexts, appends summaries, calls LLM providers, and audits performance.
+    assembles token contexts, appends summaries, calls LLM providers,
+    and audits performance.
     """
-    
+
     def generate_chat_response(
         self,
         session_id: str,
@@ -24,14 +28,14 @@ class RAGEngine:
         collection_id: Optional[int] = None,
         top_k: Optional[int] = None,
         search_type: str = "hybrid",
-        user_id: Optional[int] = None
+        user_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Executes RAG context retrieval and query generation.
         """
         db = SessionLocal()
         start_total = time.perf_counter()
-        
+
         # 1. Retrieve history including prepended compression summaries
         history = conversation_service.get_history(db, session_id)
         memory_hits = []
@@ -43,13 +47,13 @@ class RAGEngine:
         filters = {}
         if collection_id is not None:
             filters["collection_id"] = collection_id
-            
+
         retrieved_chunks = retrieval_service.retrieve_context(
             query=query,
             top_k=top_k or settings.TOP_K_RESULTS,
             filters=filters,
             search_type=search_type,
-            user_id=user_id
+            user_id=user_id,
         )
         duration_retrieve = (time.perf_counter() - start_retrieve) * 1000.0
         self._log_metric(db, "rag:retrieval", duration_retrieve)
@@ -89,11 +93,13 @@ class RAGEngine:
         # Build clean source outputs
         sources = []
         for c in reranked_chunks:
-            sources.append({
-                "chunk_id": c["chunk_id"],
-                "filename": c["filename"],
-                "score": c.get("rerank_score", c["score"])
-            })
+            sources.append(
+                {
+                    "chunk_id": c["chunk_id"],
+                    "filename": c["filename"],
+                    "score": c.get("rerank_score", c["score"]),
+                }
+            )
 
         return {
             "answer": answer,
@@ -103,8 +109,8 @@ class RAGEngine:
                 "retrieved_chunks_count": len(retrieved_chunks),
                 "context_size_chars": context_size,
                 "memory_hits": memory_hits,
-                "duration_ms": duration_total
-            }
+                "duration_ms": duration_total,
+            },
         }
 
     def explain_retrieval(
@@ -113,13 +119,13 @@ class RAGEngine:
         collection_id: Optional[int] = None,
         top_k: Optional[int] = None,
         search_type: str = "hybrid",
-        user_id: Optional[int] = None
+        user_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Diagnostic helper executing RAG context fetches without calling the LLM.
         """
         db = SessionLocal()
-        
+
         filters = {}
         if collection_id is not None:
             filters["collection_id"] = collection_id
@@ -129,7 +135,7 @@ class RAGEngine:
             top_k=top_k or settings.TOP_K_RESULTS,
             filters=filters,
             search_type=search_type,
-            user_id=user_id
+            user_id=user_id,
         )
 
         reranker = reranker_service.get_reranker()
@@ -154,47 +160,66 @@ class RAGEngine:
             "reranking_scores": rerank_scores,
             "context_size_chars": len(context_str),
             "memory_hits": ["knowledge_memory"] if context_str else [],
-            "final_prompt_token_count_estimate": prompt_tokens_est
+            "final_prompt_token_count_estimate": prompt_tokens_est,
         }
 
-    def _call_llm_provider(self, query: str, context: str, history: List[Dict[str, str]]) -> str:
+    def _call_llm_provider(
+        self, query: str, context: str, history: List[Dict[str, str]]
+    ) -> str:
         """
         Routes the compiled prompt to the configured LLM backend.
         Falls back to intelligent mock responses when API keys are absent.
         """
-        provider = settings.EMBEDDING_PROVIDER.lower() # Reuse provider setting for consistency
-        
+        provider = (
+            settings.EMBEDDING_PROVIDER.lower()
+        )  # Reuse provider setting for consistency
+
         # Build prompt context prefix
         context_prefix = ""
         if context:
-            context_prefix = f"Use the following document contexts to answer the query:\n{context}\n\n"
+            context_prefix = (
+                "Use the following document contexts to answer the query:\n"
+                f"{context}\n\n"
+            )
 
         prompt = f"{context_prefix}User Query: {query}"
-        
+
         # Mock LLM generation
-        if provider == "mock" or not (settings.GEMINI_API_KEY or settings.OPENAI_API_KEY):
+        if provider == "mock" or not (
+            settings.GEMINI_API_KEY or settings.OPENAI_API_KEY
+        ):
             # Extract basic facts from context if possible
             if "DK AI Ecosystem" in context:
-                return "The DK AI Ecosystem is a modular, provider-agnostic framework built for scalable AI agents."
+                return (
+                    "The DK AI Ecosystem is a modular, provider-agnostic "
+                    "framework built for scalable AI agents."
+                )
             if "RAG capabilities" in context:
-                return "The RAG pipeline provides vector, keyword, and hybrid similarity search with access controls."
-            return f"Mock Response: Answered query '{query}' using retrieved document context."
+                return (
+                    "The RAG pipeline provides vector, keyword, and hybrid "
+                    "similarity search with access controls."
+                )
+            return (
+                "Mock Response: Answered query "
+                f"'{query}' using retrieved document context."
+            )
 
         # Concrete LLM calls can be routed here if configured
         try:
             if provider == "gemini" and settings.GEMINI_API_KEY:
                 # Call Gemini completions
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={settings.GEMINI_API_KEY}"
-                payload = {
-                    "contents": [{"parts": [{"text": prompt}]}]
-                }
+                url = (
+                    "https://generativelanguage.googleapis.com/v1beta/models/"
+                    f"gemini-pro:generateContent?key={settings.GEMINI_API_KEY}"
+                )
+                payload = {"contents": [{"parts": [{"text": prompt}]}]}
                 with httpx.Client() as client:
                     res = client.post(url, json=payload, timeout=settings.API_TIMEOUT)
                 res.raise_for_status()
                 return res.json()["candidates"][0]["content"]["parts"][0]["text"]
         except Exception as e:
             logger.error(f"LLM API call failed: {e}. Falling back to mock response.")
-            
+
         return f"Mock Response (API Fallback): Answered query '{query}'."
 
     def _log_metric(self, db, component: str, value: float) -> None:
@@ -206,12 +231,13 @@ class RAGEngine:
                 component=component,
                 execution_time=value,
                 success=True,
-                timestamp=datetime.now(timezone.utc)
+                timestamp=datetime.now(timezone.utc),
             )
             db.add(metric)
             db.commit()
         except Exception as err:
             logger.warning(f"Failed to record RAG performance metric: {err}")
+
 
 # Global RAGEngine instance
 rag_engine = RAGEngine()

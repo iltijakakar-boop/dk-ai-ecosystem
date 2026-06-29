@@ -4,18 +4,17 @@ import os
 import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # Add app directory to path to import models
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from app.db.session import Base
 from app.config.settings import settings
+from app.db.session import Base
 
-# this is the Alembic Config object, which provides access to the values within the .ini file in use.
+# this is the Alembic Config object, which provides
+# access to the values within the .ini file in use.
 config = context.config
 
 # Interpret the config file for Python logging.
@@ -24,6 +23,7 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here for 'autogenerate' support
 target_metadata = Base.metadata
+
 
 def run_migrations_offline() -> None:
     url = settings.DATABASE_URL
@@ -37,6 +37,7 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+
 def run_migrations_online() -> None:
     configuration = config.get_section(config.config_ini_section) or {}
     configuration["sqlalchemy.url"] = settings.DATABASE_URL
@@ -47,12 +48,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

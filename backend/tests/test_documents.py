@@ -1,23 +1,21 @@
-import io
 import os
-import time
+
 import pytest
-import pickle
-import json
 from fastapi.testclient import TestClient
+
 from app.db.session import SessionLocal
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.vector_embedding import VectorEmbedding
-from app.services.embedding_service import embedding_service
-from app.services.vector_store import vector_store_service
-from app.services.indexing_service import indexing_service
 from app.services.document_service import document_service
+from app.services.indexing_service import indexing_service
+
 
 @pytest.fixture(autouse=True)
 def clean_database_and_files():
     """
-    Cleans up all database records and uploaded files in the storage path before and after each test.
+    Cleans up all database records and uploaded files
+    in the storage path before and after each test.
     """
     db = SessionLocal()
     try:
@@ -64,7 +62,7 @@ def test_document_upload_validation(client: TestClient):
     assert "Unsupported file type" in data["error"]
 
     # 2. Oversized File
-    oversized_content = b"x" * (11 * 1024 * 1024) # 11MB (limit is 10MB)
+    oversized_content = b"x" * (11 * 1024 * 1024)  # 11MB (limit is 10MB)
     files = [("files", ("big.txt", oversized_content, "text/plain"))]
     res_big = client.post("/api/v1/documents/upload", files=files)
     assert res_big.status_code == 200
@@ -78,21 +76,36 @@ def test_multifile_upload_and_background_processing(client: TestClient):
     Tests upload of multiple documents, background queue triggers, and status updates.
     """
     files = [
-        ("files", ("doc1.txt", b"DK AI Ecosystem is a powerful framework for AI agents.", "text/plain")),
-        ("files", ("doc2.md", b"This markdown file details RAG capabilities.", "text/markdown"))
+        (
+            "files",
+            (
+                "doc1.txt",
+                b"DK AI Ecosystem is a powerful framework for AI agents.",
+                "text/plain",
+            ),
+        ),
+        (
+            "files",
+            (
+                "doc2.md",
+                b"This markdown file details RAG capabilities.",
+                "text/markdown",
+            ),
+        ),
     ]
     res = client.post("/api/v1/documents/upload", files=files)
     assert res.status_code == 200
     data = res.json()["data"]
     assert len(data) == 2
-    
+
     doc1_id = data[0]["document_id"]
-    doc2_id = data[1]["document_id"]
-    
+    data[1]["document_id"]
+
     assert data[0]["status"] == "processing"
     assert data[1]["status"] == "processing"
 
-    # Verify status transition to indexed (TestClient runs background tasks synchronously before returning)
+    # Verify status transition to indexed
+    # (TestClient runs background tasks synchronously before returning)
     status_res1 = client.get(f"/api/v1/documents/{doc1_id}/status")
     assert status_res1.status_code == 200
     assert status_res1.json()["data"]["status"] == "indexed"
@@ -114,7 +127,7 @@ def test_duplicate_document_detection(client: TestClient):
     res2 = client.post("/api/v1/documents/upload", files=files2)
     assert res2.status_code == 200
     data2 = res2.json()["data"][0]
-    
+
     assert data2["document_id"] == doc_id1
     assert "already ingested" in data2["message"]
 
@@ -132,7 +145,9 @@ def test_embedding_cache_reuse(client: TestClient):
     # Fetch generated embedding data using a fresh session
     db = SessionLocal()
     try:
-        chunk = db.query(DocumentChunk).filter(DocumentChunk.document_id == doc_id).first()
+        chunk = (
+            db.query(DocumentChunk).filter(DocumentChunk.document_id == doc_id).first()
+        )
         assert chunk is not None
         assert chunk.embedding is not None
         emb_data_orig = chunk.embedding.embedding_data
@@ -146,7 +161,9 @@ def test_embedding_cache_reuse(client: TestClient):
 
     db = SessionLocal()
     try:
-        chunk2 = db.query(DocumentChunk).filter(DocumentChunk.document_id == doc_id2).first()
+        chunk2 = (
+            db.query(DocumentChunk).filter(DocumentChunk.document_id == doc_id2).first()
+        )
         assert chunk2 is not None
         assert chunk2.embedding is not None
         # Embedding data must match exactly (reused)
@@ -184,9 +201,11 @@ def test_incremental_reindexing(client: TestClient):
 
     db = SessionLocal()
     try:
-        new_chunks = db.query(DocumentChunk).filter(DocumentChunk.document_id == doc_id).all()
+        new_chunks = (
+            db.query(DocumentChunk).filter(DocumentChunk.document_id == doc_id).all()
+        )
         new_texts = [c.text for c in new_chunks]
-        
+
         # "Line number one" chunk should remain preserved
         assert any("Line number one" in t for t in new_texts)
         assert any("Line number three modified" in t for t in new_texts)
@@ -198,20 +217,29 @@ def test_similarity_search_and_statistics(client: TestClient):
     """
     Tests text similarity querying, raw vector retrieval, stats, and health checks.
     """
-    files = [("files", ("search_doc.txt", b"Artificial intelligence is transforming business analytics.", "text/plain"))]
+    files = [
+        (
+            "files",
+            (
+                "search_doc.txt",
+                b"Artificial intelligence is transforming business analytics.",
+                "text/plain",
+            ),
+        )
+    ]
     res = client.post("/api/v1/documents/upload", files=files)
-    doc_id = res.json()["data"][0]["document_id"]
+    res.json()["data"][0]["document_id"]
 
     # 1. Similarity Query
-    search_payload = {
-        "query": "artificial intelligence",
-        "top_k": 3
-    }
+    search_payload = {"query": "artificial intelligence", "top_k": 3}
     search_res = client.post("/api/v1/search/similarity", json=search_payload)
     assert search_res.status_code == 200
     matches = search_res.json()["data"]
     assert len(matches) > 0
-    assert "artificial" in matches[0]["text"].lower() or "intelligence" in matches[0]["text"].lower()
+    assert (
+        "artificial" in matches[0]["text"].lower()
+        or "intelligence" in matches[0]["text"].lower()
+    )
 
     # 2. Raw Vector Query
     vec_res = client.post("/api/v1/search/vector", json=search_payload)
@@ -237,14 +265,19 @@ def test_document_delete_cleanup(client: TestClient):
     Tests that deleting a document cleans up disk storage and cascadingly deletes
     document chunks and vector embeddings.
     """
-    files = [("files", ("cleanup_doc.txt", b"Document content to delete", "text/plain"))]
+    files = [
+        ("files", ("cleanup_doc.txt", b"Document content to delete", "text/plain"))
+    ]
     res = client.post("/api/v1/documents/upload", files=files)
     doc_id = res.json()["data"][0]["document_id"]
 
     db = SessionLocal()
     try:
         assert db.query(Document).filter(Document.id == doc_id).count() == 1
-        assert db.query(DocumentChunk).filter(DocumentChunk.document_id == doc_id).count() > 0
+        assert (
+            db.query(DocumentChunk).filter(DocumentChunk.document_id == doc_id).count()
+            > 0
+        )
     finally:
         db.close()
 
@@ -257,6 +290,9 @@ def test_document_delete_cleanup(client: TestClient):
     db = SessionLocal()
     try:
         assert db.query(Document).filter(Document.id == doc_id).count() == 0
-        assert db.query(DocumentChunk).filter(DocumentChunk.document_id == doc_id).count() == 0
+        assert (
+            db.query(DocumentChunk).filter(DocumentChunk.document_id == doc_id).count()
+            == 0
+        )
     finally:
         db.close()

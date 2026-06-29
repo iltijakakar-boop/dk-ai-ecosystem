@@ -1,5 +1,20 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import health, auth, users, admin, agents, tools, monitoring, documents, search, memory, conversations, rag, workflows
+
+from app.api.v1.endpoints import (
+    admin,
+    agents,
+    auth,
+    conversations,
+    documents,
+    health,
+    memory,
+    monitoring,
+    rag,
+    search,
+    tools,
+    users,
+    workflows,
+)
 
 v1_router = APIRouter()
 
@@ -16,7 +31,3 @@ v1_router.include_router(memory.router)
 v1_router.include_router(conversations.router)
 v1_router.include_router(rag.router)
 v1_router.include_router(workflows.router)
-
-
-
-

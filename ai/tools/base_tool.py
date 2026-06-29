@@ -1,11 +1,12 @@
 import abc
 from typing import Any, Dict, List
 
+
 class BaseTool(abc.ABC):
     """
     Abstract base class for all agent tools/plugins.
     """
-    
+
     @property
     @abc.abstractmethod
     def tool_id(self) -> str:
@@ -83,11 +84,11 @@ class BaseTool(abc.ABC):
         # Checks if all required parameters are present in arguments
         required = self.parameters.get("required", [])
         properties = self.parameters.get("properties", {})
-        
+
         for r in required:
             if r not in arguments:
                 raise ValueError(f"Missing required parameter: {r}")
-                
+
         # Validate parameter types
         for k, v in arguments.items():
             if k in properties:
@@ -104,7 +105,7 @@ class BaseTool(abc.ABC):
                     raise TypeError(f"Parameter '{k}' must be an object.")
                 elif expected_type == "array" and not isinstance(v, list):
                     raise TypeError(f"Parameter '{k}' must be an array.")
-                    
+
         return True
 
     def before_execute(self, *args, **kwargs):

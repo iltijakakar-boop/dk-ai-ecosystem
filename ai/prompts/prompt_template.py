@@ -1,10 +1,12 @@
 import os
-from typing import Any, Dict
+from typing import Any
+
 
 class PromptTemplate:
     """
     Handles prompt templates, supporting loading from strings/files and formatting placeholders.
     """
+
     def __init__(self, template: str):
         self.template = template
 

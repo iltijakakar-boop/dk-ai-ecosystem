@@ -1,18 +1,14 @@
-import os
-import shutil
-import pytest
-from fastapi.testclient import TestClient
-from ai.tools.tool_registry import tool_registry
 from ai.tools.tool_executor import tool_executor
-from plugins.runtime.plugin_manager import plugin_manager
-from app.models.tool_model import ToolExecutionLog
+from ai.tools.tool_registry import tool_registry
+from fastapi.testclient import TestClient
+
 
 def test_builtin_tool_discovery():
     """Verifies that all built-in tools are discovered and metadata is loaded."""
     tool_registry.discover_builtin_tools()
     tools = tool_registry.list_tools()
     tool_ids = [t["tool_id"] for t in tools]
-    
+
     assert "web_search" in tool_ids
     assert "file_tool" in tool_ids
     assert "python_tool" in tool_ids
@@ -35,60 +31,64 @@ def test_calculator_tool_execution():
 
 
 def test_python_tool_sandbox_execution():
-    """Tests subprocess-based python environment output capture and timeout protections."""
+    """Tests subprocess-based python environment output
+    capture and timeout protections."""
     # Successful execution
     res = tool_executor.execute_tool(
-        "python_tool", 
+        "python_tool",
         {"code": "print('Subprocess output works!')"},
-        context={"permissions": ["execute_code"]}
+        context={"permissions": ["execute_code"]},
     )
     assert res["success"] is True
     assert "Subprocess output works!" in res["result"]["stdout"]
 
     # Execution Timeout trigger
     res_sleep = tool_executor.execute_tool(
-        "python_tool", 
+        "python_tool",
         {"code": "import time\ntime.sleep(0.5)\nprint('Done')"},
-        context={"permissions": ["execute_code"]}
+        context={"permissions": ["execute_code"]},
     )
     assert res_sleep["success"] is True
     assert "Done" in res_sleep["result"]["stdout"]
-
 
 
 def test_file_tool_boundary_checks():
     """Tests read/write/delete permissions and directory traversal restrictions."""
     # Write file
     res_write = tool_executor.execute_tool(
-        "file_tool", 
-        {"action": "write", "path": "scratch/pytest_io.txt", "content": "Ecosystem I/O test data"},
-        context={"permissions": ["file_access"]}
+        "file_tool",
+        {
+            "action": "write",
+            "path": "scratch/pytest_io.txt",
+            "content": "Ecosystem I/O test data",
+        },
+        context={"permissions": ["file_access"]},
     )
     assert res_write["success"] is True
 
     # Read file
     res_read = tool_executor.execute_tool(
-        "file_tool", 
+        "file_tool",
         {"action": "read", "path": "scratch/pytest_io.txt"},
-        context={"permissions": ["file_access"]}
+        context={"permissions": ["file_access"]},
     )
     assert res_read["success"] is True
     assert res_read["result"]["content"] == "Ecosystem I/O test data"
 
     # Directory Traversal Attempt outside Workspace
     res_traverse = tool_executor.execute_tool(
-        "file_tool", 
+        "file_tool",
         {"action": "read", "path": "../../../sensitive.txt"},
-        context={"permissions": ["file_access"]}
+        context={"permissions": ["file_access"]},
     )
     assert res_traverse["success"] is False
     assert "Access denied" in res_traverse["error"]
 
     # Delete file
     res_del = tool_executor.execute_tool(
-        "file_tool", 
+        "file_tool",
         {"action": "delete", "path": "scratch/pytest_io.txt"},
-        context={"permissions": ["file_access"]}
+        context={"permissions": ["file_access"]},
     )
     assert res_del["success"] is True
 
@@ -97,18 +97,16 @@ def test_permission_validation():
     """Verifies that permissions in context allow or block tool executions."""
     # Attempting to call WebSearchTool without search permission in context
     res_denied = tool_executor.execute_tool(
-        "web_search", 
-        {"query": "quantum computing"},
-        context={"permissions": []}
+        "web_search", {"query": "quantum computing"}, context={"permissions": []}
     )
     assert res_denied["success"] is False
     assert "Permission denied" in res_denied["error"]
 
     # With search permission
     res_ok = tool_executor.execute_tool(
-        "web_search", 
+        "web_search",
         {"query": "quantum computing"},
-        context={"permissions": ["search"]}
+        context={"permissions": ["search"]},
     )
     assert res_ok["success"] is True
 
@@ -117,23 +115,26 @@ def test_memory_systems_tool():
     """Tests stateful retrieval, creation, and deletion via MemoryTool."""
     # Save Key
     res_save = tool_executor.execute_tool(
-        "memory", 
-        {"action": "save", "session_id": "test_sess_t", "key": "color", "value": "blue"}
+        "memory",
+        {
+            "action": "save",
+            "session_id": "test_sess_t",
+            "key": "color",
+            "value": "blue",
+        },
     )
     assert res_save["success"] is True
 
     # Retrieve Key
     res_get = tool_executor.execute_tool(
-        "memory", 
-        {"action": "retrieve", "session_id": "test_sess_t", "key": "color"}
+        "memory", {"action": "retrieve", "session_id": "test_sess_t", "key": "color"}
     )
     assert res_get["success"] is True
     assert res_get["result"]["value"] == "blue"
 
     # Delete Key
     res_del = tool_executor.execute_tool(
-        "memory", 
-        {"action": "delete", "session_id": "test_sess_t", "key": "color"}
+        "memory", {"action": "delete", "session_id": "test_sess_t", "key": "color"}
     )
     assert res_del["success"] is True
 
@@ -141,9 +142,10 @@ def test_memory_systems_tool():
 def test_mcp_adapter():
     """Tests translation adapter formats to ensure MCP standard compatibility."""
     from ai.mcp.mcp_adapter import MCPAdapter
+
     tool = tool_registry.get_tool("calculator")
     assert tool is not None
-    
+
     mcp_rep = MCPAdapter.to_mcp_tool(tool)
     assert mcp_rep.name == "calculator"
     assert mcp_rep.description == tool.description
@@ -151,7 +153,8 @@ def test_mcp_adapter():
 
 
 def test_api_endpoints_tools_and_plugins(client: TestClient, db):
-    """Tests API routes for tools discovery, execution, plugin installer, and controls."""
+    """Tests API routes for tools discovery, execution,
+    plugin installer, and controls."""
     # 1. GET /api/v1/tools
     res_list = client.get("/api/v1/tools")
     assert res_list.status_code == 200
@@ -161,9 +164,9 @@ def test_api_endpoints_tools_and_plugins(client: TestClient, db):
     assert "calculator" in tool_ids
 
     # 2. POST /api/v1/tools/calculator/execute
-    res_exec = client.post("/api/v1/tools/calculator/execute", json={
-        "arguments": {"expression": "2 ** 5"}
-    })
+    res_exec = client.post(
+        "/api/v1/tools/calculator/execute", json={"arguments": {"expression": "2 ** 5"}}
+    )
     assert res_exec.status_code == 200
     exec_data = res_exec.json()
     assert exec_data["success"] is True
@@ -179,7 +182,7 @@ def test_api_endpoints_tools_and_plugins(client: TestClient, db):
         "permissions": [],
         "dependencies": [],
         "enabled": True,
-        "entry_point": "tools.py"
+        "entry_point": "tools.py",
     }
     tools_code = """
 from ai.tools.base_tool import BaseTool
@@ -204,11 +207,14 @@ class TestPluginTool(BaseTool):
     def execute(self, **kwargs) -> str:
         return "success"
 """
-    res_inst = client.post("/api/v1/plugins/install", json={
-        "plugin_id": "test_plugin",
-        "manifest": manifest,
-        "tools_code": tools_code
-    })
+    res_inst = client.post(
+        "/api/v1/plugins/install",
+        json={
+            "plugin_id": "test_plugin",
+            "manifest": manifest,
+            "tools_code": tools_code,
+        },
+    )
     assert res_inst.status_code == 200
     assert res_inst.json()["success"] is True
 
@@ -221,12 +227,16 @@ class TestPluginTool(BaseTool):
     assert "test_plugin" in plugin_ids
 
     # 5. POST /api/v1/plugins/disable
-    res_disable = client.post("/api/v1/plugins/disable", json={"plugin_id": "test_plugin"})
+    res_disable = client.post(
+        "/api/v1/plugins/disable", json={"plugin_id": "test_plugin"}
+    )
     assert res_disable.status_code == 200
     assert res_disable.json()["success"] is True
 
     # 6. POST /api/v1/plugins/enable
-    res_enable = client.post("/api/v1/plugins/enable", json={"plugin_id": "test_plugin"})
+    res_enable = client.post(
+        "/api/v1/plugins/enable", json={"plugin_id": "test_plugin"}
+    )
     assert res_enable.status_code == 200
     assert res_enable.json()["success"] is True
 

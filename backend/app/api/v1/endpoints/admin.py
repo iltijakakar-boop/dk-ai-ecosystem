@@ -1,32 +1,46 @@
 import math
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from typing import List
 
-from app.dependencies.db import get_db
 from app.dependencies.auth import RoleChecker
+from app.dependencies.db import get_db
 from app.models.user import User, UserRole
 from app.repositories.audit_log import audit_log_repository
-from app.schemas.response import APIResponse
 from app.schemas.audit_log import AuditLogResponse
+from app.schemas.response import APIResponse
 
 router = APIRouter()
 
 admin_checker = RoleChecker([UserRole.ADMIN, UserRole.SUPER_ADMIN])
 
+
 @router.get("/dashboard", response_model=APIResponse)
 def get_dashboard_stats(
-    db: Session = Depends(get_db),
-    current_admin: User = Depends(admin_checker)
+    db: Session = Depends(get_db), current_admin: User = Depends(admin_checker)
 ):
     # Statistics queries
-    total_users = db.query(User).filter(User.is_deleted == False).count()
-    active_users = db.query(User).filter(User.is_active == True, User.is_deleted == False).count()
+    total_users = db.query(User).filter(User.is_deleted.is_(False)).count()
+    active_users = (
+        db.query(User).filter(User.is_active, User.is_deleted.is_(False)).count()
+    )
     inactive_users = total_users - active_users
 
-    super_admins = db.query(User).filter(User.role == UserRole.SUPER_ADMIN, User.is_deleted == False).count()
-    admins = db.query(User).filter(User.role == UserRole.ADMIN, User.is_deleted == False).count()
-    users = db.query(User).filter(User.role == UserRole.USER, User.is_deleted == False).count()
+    super_admins = (
+        db.query(User)
+        .filter(User.role == UserRole.SUPER_ADMIN, User.is_deleted.is_(False))
+        .count()
+    )
+    admins = (
+        db.query(User)
+        .filter(User.role == UserRole.ADMIN, User.is_deleted.is_(False))
+        .count()
+    )
+    users = (
+        db.query(User)
+        .filter(User.role == UserRole.USER, User.is_deleted.is_(False))
+        .count()
+    )
 
     stats = {
         "users_stats": {
@@ -37,21 +51,22 @@ def get_dashboard_stats(
         "roles_distribution": {
             "super_admins": super_admins,
             "admins": admins,
-            "users": users
-        }
+            "users": users,
+        },
     }
     return {"success": True, "data": stats}
+
 
 @router.get("/audit-logs", response_model=APIResponse)
 def get_audit_logs(
     skip: int = 0,
     limit: int = 10,
     db: Session = Depends(get_db),
-    current_admin: User = Depends(admin_checker)
+    current_admin: User = Depends(admin_checker),
 ):
     total_logs = db.query(audit_log_repository.model).count()
     logs = audit_log_repository.get_multi(db, skip=skip, limit=limit)
-    
+
     pages = math.ceil(total_logs / limit) if limit > 0 else 1
     page = (skip // limit) + 1 if limit > 0 else 1
 
@@ -60,6 +75,6 @@ def get_audit_logs(
         "total": total_logs,
         "page": page,
         "size": limit,
-        "pages": pages
+        "pages": pages,
     }
     return {"success": True, "data": paginated_data}

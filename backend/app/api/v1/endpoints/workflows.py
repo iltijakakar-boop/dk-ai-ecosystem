@@ -1,35 +1,30 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, status
-from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
+from typing import List, Optional
+
+from ai.orchestrator.workflow_engine import workflow_engine
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+
 from app.dependencies.db import get_db
+from app.models.workflow_model import DeadLetterQueue, Task, Workflow, WorkflowExecution
 from app.schemas.response import APIResponse
 from app.schemas.workflow import (
-    WorkflowCreate,
-    WorkflowResponse,
-    WorkflowExecutionResponse,
-    TaskResponse,
     DeadLetterQueueResponse,
-    OrchestratorStatusResponse
+    OrchestratorStatusResponse,
+    TaskResponse,
+    WorkflowCreate,
+    WorkflowExecutionResponse,
+    WorkflowResponse,
 )
-from app.models.workflow_model import (
-    Workflow,
-    WorkflowExecution,
-    Task,
-    DeadLetterQueue
-)
-from app.services.workflow_service import workflow_service
 from app.services.approval_service import approval_service
-from ai.orchestrator.workflow_engine import workflow_engine
-from app.core.logging.logger import logger
+from app.services.workflow_service import workflow_service
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
+
 @router.post("", response_model=APIResponse[WorkflowResponse])
 def create_or_update_workflow_template(
-    payload: WorkflowCreate,
-    db: Session = Depends(get_db)
+    payload: WorkflowCreate, db: Session = Depends(get_db)
 ):
     """
     Creates a new workflow template, or registers a new version of an existing template
@@ -41,16 +36,18 @@ def create_or_update_workflow_template(
 
 @router.get("", response_model=APIResponse[List[WorkflowResponse]])
 def list_active_workflows(
-    include_templates: bool = Query(True, description="Whether to include seeded system templates"),
-    db: Session = Depends(get_db)
+    include_templates: bool = Query(
+        True, description="Whether to include seeded system templates"
+    ),
+    db: Session = Depends(get_db),
 ):
     """
     Lists active workflow templates and user-defined workflow groups.
     """
-    query = db.query(Workflow).filter(Workflow.is_active == True)
+    query = db.query(Workflow).filter(Workflow.is_active)
     if not include_templates:
-        query = query.filter(Workflow.is_template == False)
-        
+        query = query.filter(not Workflow.is_template)
+
     wfs = query.all()
     res = [WorkflowResponse.model_validate(w) for w in wfs]
     return APIResponse(success=True, data=res)
@@ -79,9 +76,7 @@ def get_workflow_template_details(id: int, db: Session = Depends(get_db)):
 
 @router.post("/{id}/execute", response_model=APIResponse[WorkflowExecutionResponse])
 def execute_workflow_run(
-    id: int,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
 ):
     """
     Creates a new WorkflowExecution run and starts executing steps asynchronously.
@@ -91,21 +86,19 @@ def execute_workflow_run(
         raise HTTPException(status_code=404, detail="Workflow not found.")
 
     # Create run instance
-    execution = WorkflowExecution(
-        workflow_id=wf.id,
-        status="pending"
-    )
+    execution = WorkflowExecution(workflow_id=wf.id, status="pending")
     db.add(execution)
     db.commit()
     db.refresh(execution)
 
     # Dispatch to background task runner
     background_tasks.add_task(
-        workflow_engine.execute_workflow,
-        execution_id=execution.id
+        workflow_engine.execute_workflow, execution_id=execution.id
     )
 
-    return APIResponse(success=True, data=WorkflowExecutionResponse.model_validate(execution))
+    return APIResponse(
+        success=True, data=WorkflowExecutionResponse.model_validate(execution)
+    )
 
 
 @router.post("/{id}/pause", response_model=APIResponse[WorkflowExecutionResponse])
@@ -116,21 +109,25 @@ def pause_workflow_execution(id: int, db: Session = Depends(get_db)):
     execution = db.query(WorkflowExecution).filter(WorkflowExecution.id == id).first()
     if not execution:
         raise HTTPException(status_code=404, detail="Execution not found.")
-    
+
     if execution.status == "running":
         execution.status = "waiting"
         db.commit()
         db.refresh(execution)
-        
-    return APIResponse(success=True, data=WorkflowExecutionResponse.model_validate(execution))
+
+    return APIResponse(
+        success=True, data=WorkflowExecutionResponse.model_validate(execution)
+    )
 
 
 @router.post("/{id}/resume", response_model=APIResponse[WorkflowExecutionResponse])
 def resume_workflow_execution(
     id: int,
     background_tasks: BackgroundTasks,
-    task_id: Optional[int] = Query(None, description="Approve specific paused approval task ID"),
-    db: Session = Depends(get_db)
+    task_id: Optional[int] = Query(
+        None, description="Approve specific paused approval task ID"
+    ),
+    db: Session = Depends(get_db),
 ):
     """
     Resumes a paused execution run. Approves human task nodes if task_id is specified.
@@ -143,7 +140,10 @@ def resume_workflow_execution(
     if task_id is not None:
         approved = approval_service.approve_task(db, task_id)
         if not approved:
-            raise HTTPException(status_code=400, detail="Failed to approve task. Must be in 'waiting' status.")
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to approve task. Must be in 'waiting' status.",
+            )
     else:
         # Standard resume
         if execution.status == "waiting":
@@ -152,12 +152,13 @@ def resume_workflow_execution(
 
     # Re-dispatch loop to background tasks queue
     background_tasks.add_task(
-        workflow_engine.execute_workflow,
-        execution_id=execution.id
+        workflow_engine.execute_workflow, execution_id=execution.id
     )
 
     db.refresh(execution)
-    return APIResponse(success=True, data=WorkflowExecutionResponse.model_validate(execution))
+    return APIResponse(
+        success=True, data=WorkflowExecutionResponse.model_validate(execution)
+    )
 
 
 @router.post("/{id}/cancel", response_model=APIResponse[WorkflowExecutionResponse])
@@ -173,7 +174,9 @@ def cancel_workflow_execution(id: int, db: Session = Depends(get_db)):
     execution.completed_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(execution)
-    return APIResponse(success=True, data=WorkflowExecutionResponse.model_validate(execution))
+    return APIResponse(
+        success=True, data=WorkflowExecutionResponse.model_validate(execution)
+    )
 
 
 @router.get("/{id}/status", response_model=APIResponse[WorkflowExecutionResponse])
@@ -184,13 +187,15 @@ def get_execution_status(id: int, db: Session = Depends(get_db)):
     execution = db.query(WorkflowExecution).filter(WorkflowExecution.id == id).first()
     if not execution:
         raise HTTPException(status_code=404, detail="Execution not found.")
-    return APIResponse(success=True, data=WorkflowExecutionResponse.model_validate(execution))
+    return APIResponse(
+        success=True, data=WorkflowExecutionResponse.model_validate(execution)
+    )
 
 
 @router.get("/tasks", response_model=APIResponse[List[TaskResponse]], tags=["tasks"])
 def list_tasks(
     status: Optional[str] = Query(None, description="Filter by status"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Lists tasks across all executions.
@@ -214,13 +219,23 @@ def get_task_details(id: int, db: Session = Depends(get_db)):
     return APIResponse(success=True, data=TaskResponse.model_validate(task))
 
 
-@router.get("/orchestrator/status", response_model=APIResponse[OrchestratorStatusResponse], tags=["orchestrator"])
+@router.get(
+    "/orchestrator/status",
+    response_model=APIResponse[OrchestratorStatusResponse],
+    tags=["orchestrator"],
+)
 def get_orchestrator_summary_status(db: Session = Depends(get_db)):
     """
     Returns metrics tracking active workflows, failures, queues, and average run times.
     """
-    active_wf = db.query(WorkflowExecution).filter(WorkflowExecution.status == "running").count()
-    failed_wf = db.query(WorkflowExecution).filter(WorkflowExecution.status == "failed").count()
+    active_wf = (
+        db.query(WorkflowExecution)
+        .filter(WorkflowExecution.status == "running")
+        .count()
+    )
+    failed_wf = (
+        db.query(WorkflowExecution).filter(WorkflowExecution.status == "failed").count()
+    )
     dlq_count = db.query(DeadLetterQueue).count()
 
     # Seeded mocks representing running agents and execution times
@@ -230,6 +245,6 @@ def get_orchestrator_summary_status(db: Session = Depends(get_db)):
         queue_length=0,
         average_execution_time_ms=1250.0,
         failed_workflows=failed_wf,
-        retry_count=dlq_count
+        retry_count=dlq_count,
     )
     return APIResponse(success=True, data=summary)

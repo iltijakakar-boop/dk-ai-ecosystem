@@ -1,22 +1,30 @@
 import abc
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
+
 
 class BaseMetricsExporter(abc.ABC):
     """
     Abstract interface for exporting metrics to external platforms (e.g. OpenTelemetry, Prometheus).
     """
+
     @abc.abstractmethod
-    def export_counter(self, name: str, value: int, tags: Optional[Dict[str, str]] = None) -> None:
+    def export_counter(
+        self, name: str, value: int, tags: Optional[Dict[str, str]] = None
+    ) -> None:
         """Increments a counter metric."""
         pass
 
     @abc.abstractmethod
-    def export_gauge(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
+    def export_gauge(
+        self, name: str, value: float, tags: Optional[Dict[str, str]] = None
+    ) -> None:
         """Sets the current value of a gauge metric."""
         pass
 
     @abc.abstractmethod
-    def export_histogram(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
+    def export_histogram(
+        self, name: str, value: float, tags: Optional[Dict[str, str]] = None
+    ) -> None:
         """Records a value in a histogram/distribution metric."""
         pass
 
@@ -26,15 +34,22 @@ class OTelMetricsExporterPlaceholder(BaseMetricsExporter):
     Placeholder/No-Op exporter for OpenTelemetry to allow future integrations
     without modifying the core monitoring code.
     """
-    def export_counter(self, name: str, value: int, tags: Optional[Dict[str, str]] = None) -> None:
+
+    def export_counter(
+        self, name: str, value: int, tags: Optional[Dict[str, str]] = None
+    ) -> None:
         # Placeholder: could forward to otel counter in future
         pass
 
-    def export_gauge(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
+    def export_gauge(
+        self, name: str, value: float, tags: Optional[Dict[str, str]] = None
+    ) -> None:
         # Placeholder: could forward to otel gauge in future
         pass
 
-    def export_histogram(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
+    def export_histogram(
+        self, name: str, value: float, tags: Optional[Dict[str, str]] = None
+    ) -> None:
         # Placeholder: could forward to otel histogram/summary in future
         pass
 
@@ -43,9 +58,10 @@ class MetricsRegistry:
     """
     Ecosystem in-memory metrics registry. Collects counts, latencies, and db operations.
     """
+
     def __init__(self, exporter: Optional[BaseMetricsExporter] = None):
         self.exporter = exporter or OTelMetricsExporterPlaceholder()
-        
+
         # In-memory metrics stores
         self.total_requests = 0
         self.error_count = 0
@@ -91,6 +107,7 @@ class MetricsRegistry:
         self.db_queries = 0
         self.redis_operations = 0
         self.total_response_time = 0.0
+
 
 # Global Metrics Registry instance
 metrics_registry = MetricsRegistry()

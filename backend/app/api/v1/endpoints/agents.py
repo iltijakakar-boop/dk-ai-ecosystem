@@ -1,19 +1,27 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
-from app.schemas.response import APIResponse
+from typing import Any, Dict, List, Optional
+
 from ai.core.agent_manager import agent_manager
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+
+from app.schemas.response import APIResponse
 
 router = APIRouter()
+
 
 # Request schemas
 class AgentChatRequest(BaseModel):
     message: str = Field(..., description="The input message for the agent.")
-    session_id: Optional[str] = Field(None, description="Optional conversation session ID.")
+    session_id: Optional[str] = Field(
+        None, description="Optional conversation session ID."
+    )
+
 
 class AgentToolRequest(BaseModel):
     tool_name: str = Field(..., description="The name of the tool/plugin to execute.")
-    arguments: Dict[str, Any] = Field(default_factory=dict, description="Parameters for the tool execution.")
+    arguments: Dict[str, Any] = Field(
+        default_factory=dict, description="Parameters for the tool execution."
+    )
 
 
 # Endpoints
@@ -26,9 +34,15 @@ def get_agents():
         # Dynamically rediscover to catch new manifest modifications at runtime
         agent_manager.discover_agents()
         agents = agent_manager.list_agents()
-        return APIResponse(success=True, data=agents, message="Successfully retrieved registered agents.")
+        return APIResponse(
+            success=True,
+            data=agents,
+            message="Successfully retrieved registered agents.",
+        )
     except Exception as e:
-        return APIResponse(success=False, error=str(e), message="Failed to list agents.")
+        return APIResponse(
+            success=False, error=str(e), message="Failed to list agents."
+        )
 
 
 @router.get("/{agent_name}", response_model=APIResponse[Dict[str, Any]])
@@ -41,7 +55,7 @@ def get_agent_by_name(agent_name: str):
     agent = agent_manager.get_agent(agent_name)
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found.")
-        
+
     manifest = agent_manager.manifests.get(agent_name, {})
     # Build complete details
     details = {
@@ -52,13 +66,9 @@ def get_agent_by_name(agent_name: str):
         "model": manifest.get("model", "default"),
         "version": manifest.get("version", "1.0.0"),
         "tools": [
-            {
-                "name": t.name,
-                "description": t.description,
-                "parameters": t.parameters
-            }
+            {"name": t.name, "description": t.description, "parameters": t.parameters}
             for t in agent.available_tools
-        ]
+        ],
     }
     return APIResponse(success=True, data=details)
 
@@ -73,31 +83,29 @@ def chat_with_agent(agent_name: str, payload: AgentChatRequest):
     agent = agent_manager.get_agent(agent_name)
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found.")
-        
+
     session_id = payload.session_id or "default_session"
     context = {"session_id": session_id}
-    
+
     agent_res = agent_manager.execute_agent(
-        agent_id=agent_name,
-        input_text=payload.message,
-        context=context
+        agent_id=agent_name, input_text=payload.message, context=context
     )
-    
+
     if not agent_res.success:
         return APIResponse(
-            success=False, 
-            error=agent_res.error or "Unknown execution error.", 
-            message="Agent execution failed."
+            success=False,
+            error=agent_res.error or "Unknown execution error.",
+            message="Agent execution failed.",
         )
-        
+
     return APIResponse(
         success=True,
         data={
             "output": agent_res.output,
             "session_id": session_id,
-            "metadata": agent_res.metadata
+            "metadata": agent_res.metadata,
         },
-        message="Agent response generated successfully."
+        message="Agent response generated successfully.",
     )
 
 
@@ -111,30 +119,30 @@ def run_agent_tool(agent_name: str, payload: AgentToolRequest):
     agent = agent_manager.get_agent(agent_name)
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found.")
-        
+
     # Find tool
     target_tool = None
     for tool in agent.available_tools:
         if tool.name == payload.tool_name:
             target_tool = tool
             break
-            
+
     if not target_tool:
         raise HTTPException(
-            status_code=404, 
-            detail=f"Tool '{payload.tool_name}' not registered for Agent '{agent_name}'."
+            status_code=404,
+            detail=f"Tool '{payload.tool_name}' not registered for Agent '{agent_name}'.",
         )
-        
+
     try:
         result = target_tool.execute(**payload.arguments)
         return APIResponse(
             success=True,
             data={"result": result},
-            message=f"Tool '{payload.tool_name}' executed successfully."
+            message=f"Tool '{payload.tool_name}' executed successfully.",
         )
     except Exception as e:
         return APIResponse(
             success=False,
             error=str(e),
-            message=f"Failed to execute tool '{payload.tool_name}'."
+            message=f"Failed to execute tool '{payload.tool_name}'.",
         )

@@ -2,10 +2,12 @@ import os
 from typing import Any, Dict, List
 from ai.tools.base_tool import BaseTool
 
+
 class FileTool(BaseTool):
     """
     Built-in tool for secure file operations within the workspace root.
     """
+
     @property
     def tool_id(self) -> str:
         return "file_tool"
@@ -47,18 +49,18 @@ class FileTool(BaseTool):
                 "action": {
                     "type": "string",
                     "enum": ["read", "write", "create_folder", "delete"],
-                    "description": "The file action to perform."
+                    "description": "The file action to perform.",
                 },
                 "path": {
                     "type": "string",
-                    "description": "Relative path to the file or directory."
+                    "description": "Relative path to the file or directory.",
                 },
                 "content": {
                     "type": "string",
-                    "description": "Content to write (required only for write action)."
-                }
+                    "description": "Content to write (required only for write action).",
+                },
             },
-            "required": ["action", "path"]
+            "required": ["action", "path"],
         }
 
     def _resolve_safe_path(self, relative_path: str) -> str:
@@ -74,7 +76,7 @@ class FileTool(BaseTool):
         content = kwargs.get("content", "")
 
         target_path = self._resolve_safe_path(rel_path)
-        
+
         if action == "read":
             if not os.path.exists(target_path):
                 raise FileNotFoundError(f"File '{rel_path}' does not exist.")
@@ -97,7 +99,7 @@ class FileTool(BaseTool):
         elif action == "delete":
             if not os.path.exists(target_path):
                 raise FileNotFoundError(f"Path '{rel_path}' does not exist.")
-            
+
             if os.path.isdir(target_path):
                 os.rmdir(target_path)
                 return {"message": f"Successfully deleted directory '{rel_path}'."}
@@ -106,4 +108,3 @@ class FileTool(BaseTool):
                 return {"message": f"Successfully deleted file '{rel_path}'."}
         else:
             raise ValueError(f"Unsupported action '{action}'.")
-

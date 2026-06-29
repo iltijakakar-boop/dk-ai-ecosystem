@@ -1,11 +1,14 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String
 from sqlalchemy.sql import func
+
 from app.db.session import Base
+
 
 class ProviderUsage(Base):
     """
     SQLAlchemy model tracking LLM completions usage, cost, and latency metrics.
     """
+
     __tablename__ = "provider_usages"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -24,11 +27,14 @@ class ProviderHealth(Base):
     """
     SQLAlchemy model monitoring active provider statuses, latency metrics, and circuit states.
     """
+
     __tablename__ = "provider_healths"
 
     id = Column(Integer, primary_key=True, index=True)
     provider = Column(String, unique=True, index=True, nullable=False)
-    status = Column(String, default="healthy", nullable=False) # healthy, degraded, down
+    status = Column(
+        String, default="healthy", nullable=False
+    )  # healthy, degraded, down
     latency = Column(Float, default=0.0, nullable=False)
     last_check = Column(DateTime, default=func.now(), nullable=False)
 
@@ -37,6 +43,7 @@ class ModelRegistry(Base):
     """
     SQLAlchemy model holding model specifications, deprecations, active controls, and capability tags.
     """
+
     __tablename__ = "registered_models"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -47,6 +54,8 @@ class ModelRegistry(Base):
     deprecated = Column(Boolean, default=False, nullable=False)
     recommended = Column(Boolean, default=True, nullable=False)
     enabled = Column(Boolean, default=True, nullable=False)
-    capabilities = Column(String, default="[]", nullable=False) # JSON-serialized list of capability strings
+    capabilities = Column(
+        String, default="[]", nullable=False
+    )  # JSON-serialized list of capability strings
     max_context_tokens = Column(Integer, default=8192, nullable=False)
     max_output_tokens = Column(Integer, default=2048, nullable=False)

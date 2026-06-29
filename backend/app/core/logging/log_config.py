@@ -2,8 +2,10 @@ import logging
 import os
 import sys
 from logging.handlers import RotatingFileHandler
+
 from app.config.settings import settings
-from app.core.logging.formatter import JSONFormatter, ConsoleFormatter
+from app.core.logging.formatter import ConsoleFormatter, JSONFormatter
+
 
 def setup_logging(environment: str = "development") -> None:
     """
@@ -33,8 +35,8 @@ def setup_logging(environment: str = "development") -> None:
             file_handler = RotatingFileHandler(
                 log_file,
                 maxBytes=10 * 1024 * 1024,  # 10 MB per log file
-                backupCount=5,              # Keep up to 5 rotated files
-                encoding="utf-8"
+                backupCount=5,  # Keep up to 5 rotated files
+                encoding="utf-8",
             )
             file_handler.setFormatter(formatter)
             handlers.append(file_handler)
@@ -47,5 +49,5 @@ def setup_logging(environment: str = "development") -> None:
     root_logger.handlers = []
     for h in handlers:
         root_logger.addHandler(h)
-        
+
     root_logger.setLevel(level)

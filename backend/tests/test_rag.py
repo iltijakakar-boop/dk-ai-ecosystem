@@ -1,19 +1,19 @@
-import pytest
 import os
-import json
+
+import pytest
 from fastapi.testclient import TestClient
+
 from app.db.session import SessionLocal
+from app.models.conversation import Conversation
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
-from app.models.vector_embedding import VectorEmbedding
-from app.models.conversation import Conversation
-from app.models.message import Message
-from app.models.memory_entry import MemoryEntry
 from app.models.knowledge_collection import KnowledgeCollection
-from app.services.memory_service import memory_service
+from app.models.memory_entry import MemoryEntry
+from app.models.message import Message
+from app.models.vector_embedding import VectorEmbedding
 from app.services.conversation_service import conversation_service
-from app.services.indexing_service import indexing_service
-from app.services.rag_engine import rag_engine
+from app.services.memory_service import memory_service
+
 
 @pytest.fixture(autouse=True)
 def clean_rag_database_and_files():
@@ -59,7 +59,9 @@ def test_conversations_api(client: TestClient):
     # 2. Add Message Turn
     db = SessionLocal()
     try:
-        msg = conversation_service.add_message(db, "test_conv_session", "user", "Hello framework!")
+        msg = conversation_service.add_message(
+            db, "test_conv_session", "user", "Hello framework!"
+        )
         assert msg.content == "Hello framework!"
     finally:
         db.close()
@@ -90,10 +92,11 @@ def test_memory_providers_storage(client: TestClient):
 
     # 2. File Store
     from app.services.memory_service import FileMemoryStore
+
     file_store = FileMemoryStore("database/long_term_memory_test.json")
     file_store.set("file_key", {"data": "file_val"}, memory_type="long_term")
     assert file_store.get("file_key", memory_type="long_term") == {"data": "file_val"}
-    
+
     # Cleanup file
     if os.path.exists("database/long_term_memory_test.json"):
         os.remove("database/long_term_memory_test.json")
@@ -107,13 +110,17 @@ def test_memory_compression_summarization(client: TestClient):
     db = SessionLocal()
     try:
         # Create conversation thread
-        conv = conversation_service.create_conversation(db, "session_compress", "Compression thread")
-        
+        conv = conversation_service.create_conversation(
+            db, "session_compress", "Compression thread"
+        )
+
         # Log 12 message turns (limit is MEMORY_SUMMARY_TRIGGER_MESSAGES = 10)
         # We append alternating user/assistant rounds
         for i in range(12):
             role = "user" if i % 2 == 0 else "assistant"
-            conversation_service.add_message(db, "session_compress", role, f"Turn statement number {i}")
+            conversation_service.add_message(
+                db, "session_compress", role, f"Turn statement number {i}"
+            )
 
         db.refresh(conv)
         # Verify summary column populated
@@ -123,10 +130,10 @@ def test_memory_compression_summarization(client: TestClient):
         # Confirm message turns were pruned, leaving the last 2 rounds + 1 extra
         msg_count = db.query(Message).filter(Message.conversation_id == conv.id).count()
         assert msg_count == 3
-        
+
         # Check prepended summary history rebuilds
         history = conversation_service.get_history(db, "session_compress")
-        assert len(history) == 4 # 1 Prepend Summary + 3 Active Messages
+        assert len(history) == 4  # 1 Prepend Summary + 3 Active Messages
         assert history[0]["role"] == "system"
         assert "summary of the older conversation" in history[0]["content"]
 
@@ -136,13 +143,18 @@ def test_memory_compression_summarization(client: TestClient):
 
 def test_collection_access_control(client: TestClient):
     """
-    Enforces collection visibility check. Personal collections are only visible to the owner.
+    Enforces collection visibility check.
+    Personal collections are only visible to the owner.
     """
     db = SessionLocal()
     try:
         # Create two knowledge collections
-        col_owner = KnowledgeCollection(name="personal_owner", collection_type="personal", owner_id=10)
-        col_other = KnowledgeCollection(name="personal_other", collection_type="personal", owner_id=20)
+        col_owner = KnowledgeCollection(
+            name="personal_owner", collection_type="personal", owner_id=10
+        )
+        col_other = KnowledgeCollection(
+            name="personal_other", collection_type="personal", owner_id=20
+        )
         db.add(col_owner)
         db.add(col_other)
         db.commit()
@@ -157,7 +169,7 @@ def test_collection_access_control(client: TestClient):
             sha256="sha-owner-123",
             collection_id=col_owner.id,
             processing_status="indexed",
-            chunk_count=1
+            chunk_count=1,
         )
         db.add(doc_owner)
         db.flush()
@@ -166,7 +178,7 @@ def test_collection_access_control(client: TestClient):
             document_id=doc_owner.id,
             chunk_index=0,
             text="Owner proprietary guidelines content text block.",
-            token_count=6
+            token_count=6,
         )
         db.add(chunk_owner)
         db.flush()
@@ -177,26 +189,32 @@ def test_collection_access_control(client: TestClient):
             embedding_provider="mock",
             embedding_model="text-embedding-004",
             vector_dimension=1536,
-            embedding_data=pickle.dumps([0.1]*1536)
+            embedding_data=pickle.dumps([0.1] * 1536),
         )
         db.add(emb)
         db.commit()
 
         # 1. Search as owner (user_id = 10): returns chunk
-        res_owner = client.post("/api/v1/rag/search?user_id=10", json={
-            "session_id": "sess_owner",
-            "query": "proprietary",
-            "collection_id": col_owner.id
-        })
+        res_owner = client.post(
+            "/api/v1/rag/search?user_id=10",
+            json={
+                "session_id": "sess_owner",
+                "query": "proprietary",
+                "collection_id": col_owner.id,
+            },
+        )
         assert res_owner.status_code == 200
         assert len(res_owner.json()["data"]) == 1
 
         # 2. Search as different user (user_id = 20): gets empty results
-        res_other = client.post("/api/v1/rag/search?user_id=20", json={
-            "session_id": "sess_other",
-            "query": "proprietary",
-            "collection_id": col_owner.id
-        })
+        res_other = client.post(
+            "/api/v1/rag/search?user_id=20",
+            json={
+                "session_id": "sess_other",
+                "query": "proprietary",
+                "collection_id": col_owner.id,
+            },
+        )
         assert res_other.status_code == 200
         assert len(res_other.json()["data"]) == 0
 
@@ -219,7 +237,7 @@ def test_retrieval_explainability_and_chat_pipeline(client: TestClient):
             file_size=15,
             sha256="sha-rag-123",
             processing_status="indexed",
-            chunk_count=1
+            chunk_count=1,
         )
         db.add(doc)
         db.flush()
@@ -228,7 +246,7 @@ def test_retrieval_explainability_and_chat_pipeline(client: TestClient):
             document_id=doc.id,
             chunk_index=0,
             text="Ecosystem modularity and pluggable drivers are core principles.",
-            token_count=10
+            token_count=10,
         )
         db.add(chunk)
         db.flush()
@@ -238,34 +256,40 @@ def test_retrieval_explainability_and_chat_pipeline(client: TestClient):
             embedding_provider="mock",
             embedding_model="text-embedding-004",
             vector_dimension=1536,
-            embedding_data=pickle.dumps([0.5]*1536)
+            embedding_data=pickle.dumps([0.5] * 1536),
         )
         db.add(emb)
         db.commit()
 
         # 1. Explain retrieval endpoint
-        explain_res = client.get("/api/v1/rag/explain?query=modularity&search_type=hybrid")
+        explain_res = client.get(
+            "/api/v1/rag/explain?query=modularity&search_type=hybrid"
+        )
         assert explain_res.status_code == 200
         explain_data = explain_res.json()["data"]
-        
+
         assert explain_data["query"] == "modularity"
         assert len(explain_data["retrieved_chunk_ids"]) > 0
         assert explain_data["context_size_chars"] > 0
         assert explain_data["final_prompt_token_count_estimate"] > 0
 
         # 2. Chat RAG query endpoint
-        chat_res = client.post("/api/v1/rag/chat", json={
-            "session_id": "sess_rag_chat",
-            "query": "DK AI Ecosystem details modularity",
-            "search_type": "hybrid"
-        })
+        chat_res = client.post(
+            "/api/v1/rag/chat",
+            json={
+                "session_id": "sess_rag_chat",
+                "query": "DK AI Ecosystem details modularity",
+                "search_type": "hybrid",
+            },
+        )
         assert chat_res.status_code == 200
         chat_data = chat_res.json()["data"]
-        
+
         assert "Ecosystem" in chat_data["answer"] or "modularity" in chat_data["answer"]
         assert len(chat_data["sources"]) > 0
 
     finally:
         db.close()
 
-import pickle
+
+import pickle  # noqa: E402

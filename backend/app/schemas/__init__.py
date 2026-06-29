@@ -1,2 +1,3 @@
 # Schemas Module
-# Define Pydantic models here for request validation, response serialization, and documentation.
+# Define Pydantic models here for request validation, response serialization, and
+# documentation.

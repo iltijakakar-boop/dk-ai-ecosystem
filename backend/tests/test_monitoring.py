@@ -1,7 +1,7 @@
-import pytest
 from fastapi.testclient import TestClient
+
 from app.monitoring.metrics import metrics_registry
-from app.core.logging.logger import correlation_id_ctx
+
 
 def test_request_id_middleware_and_correlation(client: TestClient):
     """
@@ -10,7 +10,7 @@ def test_request_id_middleware_and_correlation(client: TestClient):
     """
     res = client.get("/api/v1/monitoring/health")
     assert res.status_code == 200
-    
+
     # Check headers
     assert "X-Correlation-ID" in res.headers
     correlation_id = res.headers["X-Correlation-ID"]
@@ -24,11 +24,11 @@ def test_metrics_registry_recording(client: TestClient):
     """
     metrics_registry.reset()
     assert metrics_registry.total_requests == 0
-    
+
     # Call endpoint to trigger metrics recording
     res = client.get("/api/v1/monitoring/health")
     assert res.status_code == 200
-    
+
     # Verify incremented counter
     assert metrics_registry.total_requests == 1
     assert metrics_registry.get_average_response_time() > 0.0
@@ -43,30 +43,30 @@ def test_monitoring_api_endpoints(client: TestClient):
     res_h = client.get("/api/v1/monitoring/health")
     assert res_h.status_code == 200
     assert res_h.json()["success"] is True
-    
+
     # 2. GET /api/v1/monitoring/system
     res_sys = client.get("/api/v1/monitoring/system")
     assert res_sys.status_code == 200
     assert res_sys.json()["success"] is True
     assert "cpu" in res_sys.json()["data"]
     assert "memory" in res_sys.json()["data"]
-    
+
     # 3. GET /api/v1/monitoring/metrics
     res_m = client.get("/api/v1/monitoring/metrics")
     assert res_m.status_code == 200
     assert res_m.json()["success"] is True
     assert "total_requests" in res_m.json()["data"]
-    
+
     # 4. GET /api/v1/monitoring/agents
     res_a = client.get("/api/v1/monitoring/agents")
     assert res_a.status_code == 200
     assert res_a.json()["success"] is True
-    
+
     # 5. GET /api/v1/monitoring/tools
     res_t = client.get("/api/v1/monitoring/tools")
     assert res_t.status_code == 200
     assert res_t.json()["success"] is True
-    
+
     # 6. GET /api/v1/monitoring/plugins
     res_p = client.get("/api/v1/monitoring/plugins")
     assert res_p.status_code == 200
