@@ -1,0 +1,328 @@
+/* Sleek Slate and HSL Tailwind-like Palette Custom Tokens */
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #121824;
+  --bg-tertiary: #1b2336;
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --border-color: #243049;
+  
+  --color-violet: #8b5cf6;
+  --color-violet-glow: rgba(139, 92, 246, 0.4);
+  --color-indigo: #6366f1;
+  --color-indigo-glow: rgba(99, 102, 241, 0.4);
+  --color-emerald: #10b981;
+  --color-emerald-glow: rgba(16, 185, 129, 0.4);
+  --color-amber: #f59e0b;
+  --color-amber-glow: rgba(245, 158, 11, 0.4);
+  --color-rose: #f43f5e;
+  --color-rose-glow: rgba(244, 63, 94, 0.4);
+  
+  --glass-bg: rgba(18, 24, 36, 0.7);
+  --glass-border: rgba(36, 48, 73, 0.6);
+  --glass-blur: blur(12px);
+  
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  margin: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+}
+
+/* Base Layout */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Header bar styling */
+.header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  height: 64px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.header-logo {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--color-indigo), var(--color-violet));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-indigo), var(--color-violet));
+  color: white;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 15px var(--color-violet-glow);
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--border-color);
+}
+
+/* Canvas Area grid rules */
+.studio-workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.visual-canvas {
+  flex: 1;
+  height: 100%;
+  background-color: var(--bg-primary);
+  background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
+  background-size: 20px 20px;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.visual-canvas:active {
+  cursor: grabbing;
+}
+
+/* Sidebars layout rules */
+.sidebar-panel {
+  width: 280px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border-left: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  z-index: 5;
+  transition: all 0.3s ease;
+}
+
+.sidebar-left {
+  width: 240px;
+  border-left: none;
+  border-right: 1px solid var(--glass-border);
+}
+
+.panel-header {
+  padding: 16px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 15px;
+}
+
+.panel-content {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Visual Node Cards styling */
+.node-library-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  cursor: grab;
+  transition: all 0.2s ease;
+}
+
+.node-library-item:hover {
+  border-color: var(--color-indigo);
+  transform: scale(1.02);
+}
+
+.canvas-node {
+  position: absolute;
+  width: 200px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  z-index: 2;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.canvas-node.selected {
+  border-color: var(--color-violet);
+  box-shadow: 0 0 15px var(--color-violet-glow);
+}
+
+.canvas-node.executing {
+  border-color: var(--color-emerald);
+  box-shadow: 0 0 20px var(--color-emerald-glow);
+  animation: pulse-glow 1.5s infinite alternate;
+}
+
+.node-header {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.node-type-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.node-content {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Ports on nodes */
+.node-port {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-indigo);
+  border: 2px solid var(--bg-secondary);
+  position: absolute;
+  cursor: crosshair;
+}
+
+.node-port-in {
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.node-port-out {
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* SVG Connection Lines */
+.edge-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.edge-path {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: 2.5;
+  transition: stroke 0.2s ease;
+}
+
+.edge-path.active {
+  stroke: var(--color-emerald);
+  stroke-dasharray: 8;
+  animation: flow-dash 1s linear infinite;
+}
+
+/* Bottom Console/Panel styling */
+.bottom-console-panel {
+  height: 240px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  z-index: 6;
+}
+
+.console-tabs {
+  display: flex;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 16px;
+}
+
+.console-tab {
+  padding: 12px 24px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.console-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--color-indigo);
+}
+
+.console-body {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  background: #07090e;
+}
+
+/* Animations */
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.8);
+  }
+}

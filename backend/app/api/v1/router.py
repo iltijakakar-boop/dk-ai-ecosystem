@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     admin,
     agents,
+    api_keys,
     auth,
     automation,
     conversations,
@@ -10,11 +11,27 @@ from app.api.v1.endpoints import (
     health,
     memory,
     monitoring,
+    organizations,
+    projects,
     rag,
     search,
+    secrets,
+    service_accounts,
+    teams,
     tools,
+    usage,
     users,
     workflows,
+    workspaces,
+    studio,
+    mcp,
+    multimodal,
+    model_management,
+    observability,
+    infrastructure,
+    devops,
+    data_platform,
+    identity,
 )
 
 v1_router = APIRouter()
@@ -33,3 +50,22 @@ v1_router.include_router(conversations.router)
 v1_router.include_router(rag.router)
 v1_router.include_router(workflows.router)
 v1_router.include_router(automation.router)
+v1_router.include_router(organizations.router)
+v1_router.include_router(workspaces.router)
+v1_router.include_router(teams.router)
+v1_router.include_router(projects.router)
+v1_router.include_router(api_keys.router)
+v1_router.include_router(service_accounts.router)
+v1_router.include_router(usage.router)
+v1_router.include_router(secrets.router)
+v1_router.include_router(studio.router)
+v1_router.include_router(mcp.router)
+v1_router.include_router(multimodal.router)
+v1_router.include_router(model_management.router)
+v1_router.include_router(observability.router)
+v1_router.include_router(infrastructure.router)
+v1_router.include_router(devops.router)
+v1_router.include_router(data_platform.router)
+v1_router.include_router(identity.router)
+
+
