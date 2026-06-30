@@ -104,6 +104,19 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_PROVIDER: int = 60
     COST_TRACKING_ENABLED: bool = True
 
+    # Automation and Task Execution settings
+    ENABLE_AUTOMATION: bool = True
+    ENABLE_SCHEDULER: bool = True
+    DEFAULT_TIMEZONE: str = "UTC"
+    MAX_JOB_RETRIES: int = 3
+    JOB_TIMEOUT_SECONDS: int = 300
+    MAX_PARALLEL_JOBS: int = 10
+    JOB_HISTORY_DAYS: int = 30
+    TASK_QUEUE_PROVIDER: str = "in_memory"
+    SCHEDULER_PROVIDER: str = "apscheduler"
+    ENABLE_EMAIL_NOTIFICATIONS: bool = False
+    ENABLE_WEBHOOK_NOTIFICATIONS: bool = False
+
     model_config = SettingsConfigDict(
         case_sensitive=True, env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )

@@ -76,10 +76,47 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to discover and register tools on startup: {e}")
 
+    # Start task queue background workers
+    try:
+        from app.services.task_queue import task_queue
+
+        task_queue.start()
+    except Exception as e:
+        logger.error(f"Failed to start task queue: {e}")
+
+    # Start scheduled automation recovery
+    try:
+        from app.db.session import SessionLocal
+        from app.services.automation_service import automation_service
+        from app.services.scheduler_service import scheduler_service
+
+        scheduler_service.start(
+            db_session_factory=SessionLocal,
+            execute_callback=automation_service.enqueue_scheduled_job,
+        )
+    except Exception as e:
+        logger.error(f"Failed to start automation scheduler: {e}")
+
     yield
 
     # Graceful shutdown
     logger.info("Shutting down resources...")
+
+    # Stop scheduler and task queue
+    try:
+        from app.services.scheduler_service import scheduler_service
+
+        scheduler_service.stop()
+    except Exception as e:
+        logger.error(f"Error stopping scheduler: {e}")
+
+    try:
+        from app.services.task_queue import task_queue
+
+        await task_queue.stop()
+    except Exception as e:
+        logger.error(f"Error stopping task queue: {e}")
+
     if hasattr(app.state, "redis_client") and app.state.redis_client:
         await app.state.redis_client.aclose()
         logger.info("Redis connection closed.")

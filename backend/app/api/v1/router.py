@@ -4,6 +4,7 @@ from app.api.v1.endpoints import (
     admin,
     agents,
     auth,
+    automation,
     conversations,
     documents,
     health,
@@ -31,3 +32,4 @@ v1_router.include_router(memory.router)
 v1_router.include_router(conversations.router)
 v1_router.include_router(rag.router)
 v1_router.include_router(workflows.router)
+v1_router.include_router(automation.router)

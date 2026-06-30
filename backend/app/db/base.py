@@ -12,3 +12,4 @@ from app.models.conversation import Conversation  # noqa
 from app.models.message import Message  # noqa
 from app.models.memory_entry import MemoryEntry  # noqa
 from app.models.knowledge_collection import KnowledgeCollection  # noqa
+from app.models.automation import AutomationJob, JobExecution, JobExecutionLog, Notification  # fmt: skip # noqa

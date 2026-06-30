@@ -341,6 +341,32 @@ Routes under `/api/v1/workflows/`:
 - `GET /api/v1/tasks/{id}`: Fetch task details.
 - `GET /api/v1/orchestrator/status`: System counts (latencies, running agents, queue length).
 
+---
+
+### 9. AI Automation & Autonomous Task Execution (Sprint 011)
+
+The ecosystem includes a production-grade, enterprise-ready AI Automation & Autonomous Task Execution framework.
+
+#### Core Features
+- **Job Dependency Chain**: Support for jobs depending on parent jobs with validation matching.
+- **Priority-based Execution Queue**: Critical, High, Normal, and Low priority sorting to handle parallel worker threads without task starvation.
+- **APScheduler Service**: Time-based Cron and Interval trigger management.
+- **Restart Recovery**: Automated startup routines reloading scheduled jobs and transitioning interrupted executions.
+- **Ecosystem Trigger Listener**: Centralized subscription matching event types (e.g. `workflow_completed`, `document_indexed`) to target automation jobs.
+- **Incoming Webhook Receiver**: Allows external triggers to invoke automation jobs.
+- **Live Progress & Transition Logs**: Live progress estimation percentages and detailed step-by-step state logging.
+
+#### API Route Summary
+Routes under `/api/v1/automation/`:
+- `GET /api/v1/automation/jobs`: List registered jobs.
+- `POST /api/v1/automation/jobs`: Create a new automation job.
+- `POST /api/v1/automation/jobs/{id}/run`: Run a job manually.
+- `POST /api/v1/automation/jobs/{id}/pause` / `/resume` / `/cancel`: Manage job execution state.
+- `GET /api/v1/automation/jobs/{id}/progress`: Query percentage progress.
+- `GET /api/v1/automation/jobs/{id}/logs`: Query step-by-step transition logs.
+- `GET /api/v1/automation/dashboard`: Retrieve dashboard statistics overview.
+- `POST /api/v1/automation/webhook`: Incoming webhook receiver.
+
 
 
 
